@@ -30,22 +30,27 @@ public class MediaService {
     private String uploadDir;
 
     /**
-     * 上传图片
+     * 上传图片（articleId 为 null 或 0 表示独立图库上传）
      */
     public Media uploadImage(MultipartFile file, Long articleId) {
-        Article article = articleRepository.findById(articleId)
-                .orElseThrow(() -> new RuntimeException("文章不存在"));
+        Article article = null;
+        if (articleId != null && articleId > 0) {
+            article = articleRepository.findById(articleId)
+                    .orElseThrow(() -> new RuntimeException("文章不存在"));
+        }
 
         String fileName = saveFile(file);
 
-        Media media = Media.builder()
+        Media.MediaBuilder builder = Media.builder()
                 .url("/uploads/" + fileName)
                 .type(Media.MediaType.IMAGE)
-                .description(file.getOriginalFilename())
-                .article(article)
-                .build();
+                .description(file.getOriginalFilename());
 
-        return mediaRepository.save(media);
+        if (article != null) {
+            builder.article(article);
+        }
+
+        return mediaRepository.save(builder.build());
     }
 
     /**

@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * 用户服务
  */
@@ -37,13 +40,15 @@ public class UserService {
                 .avatar("🐻")
                 .themeColor("#FF6B8B")
                 .bio("热爱旅行的旅行者")
+                .role("USER")
+                .status("ACTIVE")
                 .articleCount(0)
                 .followerCount(0)
                 .followingCount(0)
                 .build();
 
         user = userRepository.save(user);
-        String token = jwtUtil.generateToken(user.getUsername());
+        String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
 
         return AuthResponse.builder()
                 .token(token)
@@ -62,7 +67,12 @@ public class UserService {
             throw new RuntimeException("用户名或密码错误");
         }
 
-        String token = jwtUtil.generateToken(user.getUsername());
+        // 检查用户状态
+        if ("DISABLED".equals(user.getStatus())) {
+            throw new RuntimeException("账号已被禁用");
+        }
+
+        String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
 
         return AuthResponse.builder()
                 .token(token)
@@ -95,6 +105,24 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
 
+        if (dto.getUsername() != null && !dto.getUsername().isBlank()) {
+            // 检查用户名是否被其他用户占用
+            userRepository.findByUsername(dto.getUsername()).ifPresent(existing -> {
+                if (!existing.getId().equals(userId)) {
+                    throw new RuntimeException("用户名已被占用");
+                }
+            });
+            user.setUsername(dto.getUsername());
+        }
+        if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
+            // 检查邮箱是否被其他用户占用
+            userRepository.findByEmail(dto.getEmail()).ifPresent(existing -> {
+                if (!existing.getId().equals(userId)) {
+                    throw new RuntimeException("邮箱已被占用");
+                }
+            });
+            user.setEmail(dto.getEmail());
+        }
         if (dto.getBio() != null) {
             user.setBio(dto.getBio());
         }
@@ -110,6 +138,38 @@ public class UserService {
     }
 
     /**
+     * 获取所有用户列表（管理员）
+     */
+    public List<UserDTO> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 更新用户状态（管理员）
+     */
+    public UserDTO updateUserStatus(Long userId, String status) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        user.setStatus(status);
+        user = userRepository.save(user);
+        return toDTO(user);
+    }
+
+    /**
+     * 更新用户角色（管理员）
+     */
+    public UserDTO updateUserRole(Long userId, String role) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        user.setRole(role);
+        user = userRepository.save(user);
+        return toDTO(user);
+    }
+
+    /**
      * 转换为DTO
      */
     public UserDTO toDTO(User user) {
@@ -120,6 +180,8 @@ public class UserService {
                 .avatar(user.getAvatar())
                 .themeColor(user.getThemeColor())
                 .bio(user.getBio())
+                .role(user.getRole())
+                .status(user.getStatus())
                 .articleCount(user.getArticleCount())
                 .followerCount(user.getFollowerCount())
                 .followingCount(user.getFollowingCount())

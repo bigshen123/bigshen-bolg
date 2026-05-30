@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Navigation, Globe, Loader2 } from 'lucide-react';
 import { useThemeContext } from '../components/theme/ThemeProvider';
@@ -16,21 +17,37 @@ interface TravelSpot {
 
 // 预设城市坐标映射（用于从 location 字段解析坐标）
 const CITY_COORDS: Record<string, { lat: number; lng: number; emoji: string }> = {
+    // 日本
     '小樽': { lat: 43.2, lng: 141.0, emoji: '🌸' },
     '北海道': { lat: 43.06, lng: 141.35, emoji: '⛄' },
+    '京都': { lat: 35.01, lng: 135.77, emoji: '🍁' },
+    '山梨县': { lat: 35.60, lng: 138.57, emoji: '🗻' },
+    // 东南亚
     '巴厘岛': { lat: -8.34, lng: 115.09, emoji: '🏝️' },
+    '清迈': { lat: 18.79, lng: 98.98, emoji: '🛕' },
+    // 国内
     '丽江': { lat: 26.86, lng: 100.23, emoji: '🏮' },
     '垦丁': { lat: 21.95, lng: 120.77, emoji: '🌊' },
-    '京都': { lat: 35.01, lng: 135.77, emoji: '🍁' },
     '敦煌': { lat: 40.05, lng: 94.67, emoji: '🏜️' },
-    '清迈': { lat: 18.79, lng: 98.98, emoji: '🛕' },
+    '厦门': { lat: 24.46, lng: 118.08, emoji: '🌴' },
+    // 欧洲
     '巴黎': { lat: 48.86, lng: 2.35, emoji: '🗼' },
+    '格林德瓦': { lat: 46.62, lng: 8.04, emoji: '🏔️' },
 };
+
+/**
+ * 经纬度转换为地图上的百分比坐标
+ * lat: -90~90 → 85%~15% (北半球在上)
+ * lng: -180~180 → 5%~95%
+ */
+const latToY = (lat: number) => `${85 - (lat + 90) / 180 * 70}%`;
+const lngToX = (lng: number) => `${(lng + 180) / 360 * 90 + 5}%`;
 
 /**
  * 地图页面 - 展示旅行足迹（从文章数据动态生成）
  */
 const MapPage = () => {
+    const navigate = useNavigate();
     const { config } = useThemeContext();
     const [spots, setSpots] = useState<TravelSpot[]>([]);
     const [loading, setLoading] = useState(true);
@@ -142,46 +159,46 @@ const MapPage = () => {
                 </div>
 
                 {/* 标记点 */}
-                {spots.map((spot) => {
-                    const top = `${20 + (spot.lat + 10) * 1.5}%`;
-                    const left = `${10 + (spot.lng + 10) * 0.4}%`;
-
-                    return (
-                        <motion.div
-                            key={spot.name}
-                            className="absolute cursor-pointer group"
-                            style={{ top, left }}
-                            whileHover={{ scale: 1.5, zIndex: 10 }}
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: Math.random() * 0.5 }}
-                        >
-                            <div className="relative">
-                                <div
-                                    className="w-10 h-10 rounded-full flex items-center justify-center
-                                           shadow-lg text-lg animate-float"
-                                    style={{
-                                        background: `linear-gradient(135deg, ${config.colors.primary}, ${config.colors.secondary})`,
-                                    }}
-                                >
-                                    {spot.emoji}
-                                </div>
-                                {/* 信息卡片 */}
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                                            bg-white rounded-xl shadow-lg p-3 whitespace-nowrap
-                                            opacity-0 group-hover:opacity-100 transition-opacity
-                                            pointer-events-none">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                        <MapPin size={12} className="text-pink-400" />
-                                        <span className="text-sm font-medium">{spot.name}</span>
-                                    </div>
-                                    <div className="text-xs text-gray-400">{spot.country}</div>
-                                    <div className="text-xs text-pink-400 mt-1">{spot.articles} 篇文章</div>
-                                </div>
+                {spots.map((spot) => (
+                    <motion.div
+                        key={spot.name}
+                        className="absolute cursor-pointer group"
+                        style={{
+                            top: latToY(spot.lat),
+                            left: lngToX(spot.lng),
+                        }}
+                        whileHover={{ scale: 1.5, zIndex: 10 }}
+                        whileTap={{ scale: 0.9 }}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: Math.random() * 0.5 }}
+                        onClick={() => navigate(`/category/${spot.country}`)}
+                    >
+                        <div className="relative">
+                            <div
+                                className="w-10 h-10 rounded-full flex items-center justify-center
+                                       shadow-lg text-lg animate-float"
+                                style={{
+                                    background: `linear-gradient(135deg, ${config.colors.primary}, ${config.colors.secondary})`,
+                                }}
+                            >
+                                {spot.emoji}
                             </div>
-                        </motion.div>
-                    );
-                })}
+                            {/* 信息卡片 */}
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                                        bg-white rounded-xl shadow-lg p-3 whitespace-nowrap
+                                        opacity-0 group-hover:opacity-100 transition-opacity
+                                        pointer-events-none z-20">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <MapPin size={12} className="text-pink-400" />
+                                    <span className="text-sm font-medium">{spot.name}</span>
+                                </div>
+                                <div className="text-xs text-gray-400">{spot.country}</div>
+                                <div className="text-xs text-pink-400 mt-1">{spot.articles} 篇文章</div>
+                            </div>
+                        </div>
+                    </motion.div>
+                ))}
             </motion.div>
 
             {/* 统计信息 */}
@@ -226,6 +243,7 @@ const MapPage = () => {
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: i * 0.05 }}
+                                onClick={() => navigate(`/category/${spot.country}`)}
                             >
                                 <span className="text-2xl">{spot.emoji}</span>
                                 <div className="flex-1">

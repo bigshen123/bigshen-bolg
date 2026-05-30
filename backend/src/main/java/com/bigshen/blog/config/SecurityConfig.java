@@ -27,14 +27,32 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> {})
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // 认证接口公开
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/articles", "/api/articles/*").permitAll()
-                .requestMatchers("/api/articles/search").permitAll()
+                // 文章列表/搜索/热门/详情（仅GET公开）
+                .requestMatchers("GET", "/api/articles", "/api/articles/search",
+                        "/api/articles/hot", "/api/articles/*").permitAll()
+                // 评论查看公开
+                .requestMatchers("GET", "/api/comments/article/**").permitAll()
+                // 分类查看公开，增删改需要管理员
+                .requestMatchers("GET", "/api/categories", "/api/categories/**").permitAll()
+                .requestMatchers("POST", "/api/categories/**").hasRole("ADMIN")
+                .requestMatchers("PUT", "/api/categories/**").hasRole("ADMIN")
+                .requestMatchers("DELETE", "/api/categories/**").hasRole("ADMIN")
+                // 媒体文件查看公开，上传需要认证
+                .requestMatchers("GET", "/api/media/**").permitAll()
+                .requestMatchers("POST", "/api/media/**").authenticated()
+                // H2控制台
                 .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/api/media/**").permitAll()
+                // 管理员接口
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // 收藏接口需要认证
+                .requestMatchers("/api/favorites/**").authenticated()
+                // 其他所有接口需要认证
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers.frameOptions(frame -> frame.disable()))

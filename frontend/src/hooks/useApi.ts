@@ -10,12 +10,19 @@ export const useApi = () => {
     const call = useCallback(async <T>(apiCall: () => Promise<T>): Promise<T | null> => {
         setLoading(true);
         setError(null);
-        const result = await apiCall();
-        if (!result) {
-            setError('请求失败，请稍后重试');
+        try {
+            const result = await apiCall();
+            if (!result) {
+                setError('请求失败，请稍后重试');
+            }
+            return result;
+        } catch (err: unknown) {
+            const axiosErr = err as { response?: { data?: { message?: string } } };
+            setError(axiosErr?.response?.data?.message || '请求发生错误');
+            return null;
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-        return result;
     }, []);
 
     return { loading, error, call, setError };

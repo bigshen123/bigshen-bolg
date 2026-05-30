@@ -36,6 +36,7 @@ interface ArticleCardProps {
     coverImage?: string;
     authorName: string;
     authorAvatar: string;
+    categoryName?: string;
     tags?: string[];
     location?: string;
     viewCount?: number;
@@ -50,6 +51,7 @@ export const ArticleCard = ({
     coverImage,
     authorName,
     authorAvatar,
+    categoryName,
     tags,
     location,
     viewCount = 0,
@@ -79,6 +81,14 @@ export const ArticleCard = ({
                 <h3 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">{title}</h3>
                 {summary && (
                     <p className="text-sm text-gray-500 mb-3 line-clamp-2">{summary}</p>
+                )}
+
+                {/* 分类 */}
+                {categoryName && (
+                    <span className="inline-block px-2.5 py-1 bg-purple-50 text-purple-500 text-xs
+                                   rounded-full mb-2">
+                        📂 {categoryName}
+                    </span>
                 )}
 
                 {/* 标签 */}

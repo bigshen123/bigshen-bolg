@@ -41,6 +41,10 @@ public class Comment {
     @Builder.Default
     private List<Comment> replies = new ArrayList<>();
 
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private String status = "NORMAL";
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

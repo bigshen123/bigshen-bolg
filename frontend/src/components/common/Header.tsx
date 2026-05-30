@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, User, Menu, X, Home, Image, Map, Compass } from 'lucide-react';
+import { Search, Menu, X, Home, Image, Map, Compass, PenLine, Shield } from 'lucide-react';
 import { useThemeContext } from '../theme/ThemeProvider';
 import AnimalAvatar from '../theme/AnimalAvatar';
 
@@ -19,6 +19,17 @@ const Header = () => {
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
+
+    // 检查当前用户是否为管理员
+    const isAdmin = useMemo(() => {
+        try {
+            const saved = localStorage.getItem('blog-user');
+            if (!saved) return false;
+            return JSON.parse(saved).role === 'ADMIN';
+        } catch {
+            return false;
+        }
+    }, []);
 
     return (
         <header
@@ -56,6 +67,16 @@ const Header = () => {
                         </Link>
                     ))}
 
+                    {/* 写文章按钮 */}
+                    <button
+                        onClick={() => navigate('/article/new')}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full
+                                 bg-white/20 text-white hover:bg-white/30 transition-all duration-200"
+                    >
+                        <PenLine size={18} />
+                        <span className="text-sm font-medium">写文章</span>
+                    </button>
+
                     {/* 搜索按钮 */}
                     <button
                         onClick={() => setSearchOpen(!searchOpen)}
@@ -72,6 +93,20 @@ const Header = () => {
                     >
                         <Compass size={18} />
                     </button>
+
+                    {/* 管理员后台入口 */}
+                    {isAdmin && (
+                        <button
+                            onClick={() => navigate('/admin')}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-full
+                                     bg-yellow-400/20 text-yellow-100 hover:bg-yellow-400/30
+                                     transition-all duration-200"
+                            title="管理后台"
+                        >
+                            <Shield size={16} />
+                            <span className="text-xs font-medium">管理</span>
+                        </button>
+                    )}
 
                     {/* 用户头像 */}
                     <button
@@ -136,6 +171,24 @@ const Header = () => {
                                     <span>{item.label}</span>
                                 </Link>
                             ))}
+                            <button
+                                onClick={() => { navigate('/article/new'); setMobileMenuOpen(false); }}
+                                className="flex items-center gap-3 px-4 py-3 rounded-xl
+                                         text-pink-600 hover:bg-pink-50 transition-colors font-medium"
+                            >
+                                <PenLine size={18} />
+                                <span>写文章</span>
+                            </button>
+                            {isAdmin && (
+                                <button
+                                    onClick={() => { navigate('/admin'); setMobileMenuOpen(false); }}
+                                    className="flex items-center gap-3 px-4 py-3 rounded-xl
+                                             text-purple-600 hover:bg-purple-50 transition-colors font-medium"
+                                >
+                                    <Shield size={18} />
+                                    <span>管理后台</span>
+                                </button>
+                            )}
                         </nav>
                     </motion.div>
                 )}

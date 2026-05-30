@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Sparkles, ChevronDown, Loader2 } from 'lucide-react';
 import { useThemeContext } from '../components/theme/ThemeProvider';
@@ -21,6 +22,7 @@ const PAGE_SIZE = 10;
  * 首页组件
  */
 const HomePage = () => {
+    const navigate = useNavigate();
     const { config, randomizeTheme } = useThemeContext();
     const [articles, setArticles] = useState<Article[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -238,12 +240,13 @@ const HomePage = () => {
                                         coverImage={article.coverImage}
                                         authorName={article.authorName}
                                         authorAvatar={article.authorAvatar}
+                                        categoryName={article.categoryName}
                                         tags={article.tags}
                                         location={article.location}
                                         viewCount={article.viewCount}
                                         likeCount={article.likeCount}
                                         createdAt={formatDate(article.createdAt)}
-                                        onClick={() => window.location.href = `/article/${article.id}`}
+                                        onClick={() => navigate(`/article/${article.id}`)}
                                     />
                                 </motion.div>
                             ))}

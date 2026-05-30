@@ -20,6 +20,8 @@ public class UserDTO {
     private String avatar;
     private String themeColor;
     private String bio;
+    private String role;
+    private String status;
     private Integer articleCount;
     private Integer followerCount;
     private Integer followingCount;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
 import { useThemeContext } from '../components/theme/ThemeProvider';
@@ -10,7 +10,11 @@ import { userService } from '../services/userService';
  */
 const LoginPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { config } = useThemeContext();
+
+    // 获取重定向来源页面
+    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
     const [isLogin, setIsLogin] = useState(true);
     const [username, setUsername] = useState('');
@@ -55,7 +59,8 @@ const LoginPage = () => {
                 // 保存 token 和用户信息到 localStorage
                 localStorage.setItem('blog-token', result.token);
                 localStorage.setItem('blog-user', JSON.stringify(result.user));
-                navigate('/');
+                // 登录成功后跳回来源页面
+                navigate(from, { replace: true });
             }
         } catch (err: unknown) {
             const axiosErr = err as { response?: { data?: { message?: string } } };

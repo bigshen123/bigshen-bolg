@@ -7,6 +7,8 @@ export interface User {
     avatar: string;
     themeColor: string;
     bio: string;
+    role?: string;
+    status?: string;
     articleCount: number;
     followerCount: number;
     followingCount: number;
@@ -37,6 +39,7 @@ export interface Comment {
     username: string;
     userAvatar: string;
     parentId: number | null;
+    status?: string;
     replies: Comment[];
     createdAt: string;
 }

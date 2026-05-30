@@ -22,7 +22,8 @@ public class CommentDTO {
     private String username;
     private String userAvatar;
     private Long parentId;
+    private String status;
     @Builder.Default
-    private List<CommentDTO> repliesDTO = List.of();
+    private List<CommentDTO> replies = List.of();
     private LocalDateTime createdAt;
 }

@@ -50,4 +50,18 @@ export const articleService = {
         });
         return response.data;
     },
+
+    getArticlesByCategory: async (categoryId: number, page = 0, size = 10): Promise<PageResponse<Article> | null> => {
+        const response = await api.get<PageResponse<Article>>('/articles/search', {
+            params: { categoryId, page, size },
+        });
+        return response.data;
+    },
+
+    getHotArticles: async (limit = 6): Promise<Article[]> => {
+        const response = await api.get<Article[]>('/articles/hot', {
+            params: { limit },
+        });
+        return response.data;
+    },
 };

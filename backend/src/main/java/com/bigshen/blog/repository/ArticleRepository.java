@@ -16,6 +16,14 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
 
     Page<Article> findByOrderByCreatedAtDesc(Pageable pageable);
 
+    Page<Article> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
+
+    Page<Article> findByStatusOrderByViewCountDesc(String status, Pageable pageable);
+
+    Page<Article> findByCategoryIdAndStatusOrderByCreatedAtDesc(Long categoryId, String status, Pageable pageable);
+
+    long countByStatus(String status);
+
     @Query("SELECT a FROM Article a WHERE :tag MEMBER OF a.tags ORDER BY a.createdAt DESC")
     Page<Article> findByTag(@Param("tag") String tag, Pageable pageable);
 

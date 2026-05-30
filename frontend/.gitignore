@@ -1,4 +1,14 @@
-# Logs
+# 依赖目录
+node_modules
+package-lock.json
+
+# 构建产物
+dist
+dist-ssr
+build
+*.tsbuildinfo
+
+# 日志
 logs
 *.log
 npm-debug.log*
@@ -7,18 +17,34 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# 环境变量文件（包含敏感信息，不应提交）
+.env
+.env.local
+.env.*.local
 *.local
 
-# Editor directories and files
+# 编辑器和 IDE
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 缓存
+.vite
+.eslintcache
+.cache
+*.cache
+
+# 测试覆盖率
+coverage
+
+# 打包分析
+stats.html

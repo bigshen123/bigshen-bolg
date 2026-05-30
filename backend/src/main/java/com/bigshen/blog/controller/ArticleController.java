@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * 文章控制器
  */
@@ -85,10 +87,13 @@ public class ArticleController {
     public ResponseEntity<Page<ArticleDTO>> searchArticles(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String tag,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Page<ArticleDTO> articles;
-        if (tag != null && !tag.isEmpty()) {
+        if (categoryId != null) {
+            articles = articleService.getArticlesByCategory(categoryId, page, size);
+        } else if (tag != null && !tag.isEmpty()) {
             articles = articleService.getArticlesByTag(tag, page, size);
         } else if (keyword != null && !keyword.isEmpty()) {
             articles = articleService.searchArticles(keyword, page, size);
@@ -96,5 +101,14 @@ public class ArticleController {
             articles = articleService.getArticles(page, size);
         }
         return ResponseEntity.ok(articles);
+    }
+
+    /**
+     * 热门文章排行
+     */
+    @GetMapping("/hot")
+    public ResponseEntity<List<ArticleDTO>> getHotArticles(
+            @RequestParam(defaultValue = "6") int limit) {
+        return ResponseEntity.ok(articleService.getHotArticles(limit));
     }
 }

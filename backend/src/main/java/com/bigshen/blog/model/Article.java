@@ -49,6 +49,14 @@ public class Article {
     @Builder.Default
     private List<Media> mediaList = new ArrayList<>();
 
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private String status = "DRAFT";
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     @Column(length = 200)
     private String location;
 

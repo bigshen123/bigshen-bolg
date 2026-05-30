@@ -17,10 +17,15 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:3000")
+                .allowedOriginPatterns("*")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
+        // 上传文件目录也允许跨域
+        registry.addMapping("/uploads/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "OPTIONS")
+                .allowedHeaders("*");
     }
 
     /**

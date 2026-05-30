@@ -26,8 +26,40 @@ bin/
 ### VS Code ###
 .vscode/
 
+# ==================== IDE ====================
+*.iws
+*.iml
+*.ipr
+.idea/
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# ==================== Maven ====================
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
 ### Mac OS ###
 .DS_Store
 
+
+
+# ==================== AI Tools ====================
+.codebuddy/
+.codebuddy/*
+.qoder/
+
+# ==================== Skills ====================
+.skills/
+
 .codebuddy
-.codebuddy/**
+
+## gitnexus
+.claude
+AGENTS.md
+CLAUDE.md

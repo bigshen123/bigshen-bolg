@@ -39,6 +39,14 @@ public class User {
     @Column(length = 200)
     private String bio;
 
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private String role = "USER";
+
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private String status = "ACTIVE";
+
     @Column(nullable = false)
     @Builder.Default
     private Integer articleCount = 0;

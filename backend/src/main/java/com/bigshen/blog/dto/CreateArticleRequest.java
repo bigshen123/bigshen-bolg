@@ -29,6 +29,8 @@ public class CreateArticleRequest {
     private String summary;
 
     private String coverImage;
+    private String status;
+    private Long categoryId;
     private List<String> tags;
     private String location;
     private LocalDate travelDate;

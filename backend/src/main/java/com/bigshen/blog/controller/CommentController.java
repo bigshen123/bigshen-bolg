@@ -51,4 +51,13 @@ public class CommentController {
         CommentDTO reply = commentService.replyToComment(commentId, body.get("content"), authentication.getName());
         return ResponseEntity.ok(reply);
     }
+
+    /**
+     * 删除评论（软删除，管理员）
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteComment(@PathVariable Long id) {
+        commentService.softDeleteComment(id);
+        return ResponseEntity.noContent().build();
+    }
 }

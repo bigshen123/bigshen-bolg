@@ -4,6 +4,7 @@ import ColorGenerator from '../theme/ColorGenerator';
 import AnimalAvatar from '../theme/AnimalAvatar';
 import { useThemeContext } from '../theme/ThemeProvider';
 import { getAnimalList } from '../../utils/themeUtils';
+import { useMemo } from 'react';
 
 /**
  * 侧边栏组件
@@ -11,6 +12,16 @@ import { getAnimalList } from '../../utils/themeUtils';
 const Sidebar = () => {
     const { config, setAnimal } = useThemeContext();
     const animals = getAnimalList();
+
+    // 从 localStorage 获取当前用户信息
+    const userInfo = useMemo(() => {
+        try {
+            const saved = localStorage.getItem('blog-user');
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    }, []);
 
     const popularTags = ['日本', '海边', '美食', '露营', '城市漫步', '雪山', '古镇', '花海'];
 
@@ -22,21 +33,31 @@ const Sidebar = () => {
                     <div className="flex items-center gap-3 mb-3">
                         <AnimalAvatar animal={config.animalCharacter} size="md" />
                         <div>
-                            <h3 className="font-semibold text-gray-800">旅行小熊</h3>
-                            <p className="text-xs text-gray-400">热爱生活的旅行者</p>
+                            <h3 className="font-semibold text-gray-800">
+                                {userInfo?.username || '旅行小熊'}
+                            </h3>
+                            <p className="text-xs text-gray-400">
+                                {userInfo?.bio || '热爱生活的旅行者'}
+                            </p>
                         </div>
                     </div>
                     <div className="flex justify-around text-center text-sm py-2 border-t border-gray-100">
                         <div>
-                            <div className="font-bold text-gray-800">12</div>
+                            <div className="font-bold text-gray-800">
+                                {userInfo?.articleCount ?? 0}
+                            </div>
                             <div className="text-xs text-gray-400">文章</div>
                         </div>
                         <div>
-                            <div className="font-bold text-gray-800">328</div>
+                            <div className="font-bold text-gray-800">
+                                {userInfo?.followerCount ?? 0}
+                            </div>
                             <div className="text-xs text-gray-400">粉丝</div>
                         </div>
                         <div>
-                            <div className="font-bold text-gray-800">56</div>
+                            <div className="font-bold text-gray-800">
+                                {userInfo?.followingCount ?? 0}
+                            </div>
                             <div className="text-xs text-gray-400">关注</div>
                         </div>
                     </div>

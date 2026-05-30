@@ -3,8 +3,10 @@ package com.bigshen.blog.service;
 import com.bigshen.blog.dto.ArticleDTO;
 import com.bigshen.blog.dto.CreateArticleRequest;
 import com.bigshen.blog.model.Article;
+import com.bigshen.blog.model.Category;
 import com.bigshen.blog.model.User;
 import com.bigshen.blog.repository.ArticleRepository;
+import com.bigshen.blog.repository.CategoryRepository;
 import com.bigshen.blog.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -14,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 文章服务
@@ -24,12 +28,26 @@ public class ArticleService {
 
     private final ArticleRepository articleRepository;
     private final UserRepository userRepository;
+    private final CategoryRepository categoryRepository;
 
     /**
-     * 获取文章列表(分页)
+     * 获取已发布文章列表(分页)
      */
     public Page<ArticleDTO> getArticles(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
+        return articleRepository.findByStatusOrderByCreatedAtDesc("PUBLISHED", pageable)
+                .map(this::toDTO);
+    }
+
+    /**
+     * 获取全部文章列表(管理员，含草稿)
+     */
+    public Page<ArticleDTO> getAllArticles(int page, int size, String status) {
+        Pageable pageable = PageRequest.of(page, size);
+        if (status != null && !status.isEmpty()) {
+            return articleRepository.findByStatusOrderByCreatedAtDesc(status, pageable)
+                    .map(this::toDTO);
+        }
         return articleRepository.findByOrderByCreatedAtDesc(pageable)
                 .map(this::toDTO);
     }
@@ -59,6 +77,7 @@ public class ArticleService {
                 .content(request.getContent())
                 .summary(request.getSummary())
                 .coverImage(request.getCoverImage())
+                .status(request.getStatus() != null ? request.getStatus() : "DRAFT")
                 .author(author)
                 .tags(request.getTags() != null ? request.getTags() : Collections.emptyList())
                 .location(request.getLocation())
@@ -68,11 +87,24 @@ public class ArticleService {
                 .commentCount(0)
                 .build();
 
+        // 关联分类
+        if (request.getCategoryId() != null) {
+            Article finalArticle = article;
+            categoryRepository.findById(request.getCategoryId())
+                    .ifPresent(cat -> {
+                        finalArticle.setCategory(cat);
+                        cat.setArticleCount(cat.getArticleCount() + 1);
+                        categoryRepository.save(cat);
+                    });
+        }
+
         article = articleRepository.save(article);
 
-        // 更新用户文章数
-        author.setArticleCount(author.getArticleCount() + 1);
-        userRepository.save(author);
+        // 更新用户文章数(仅已发布)
+        if ("PUBLISHED".equals(article.getStatus())) {
+            author.setArticleCount(author.getArticleCount() + 1);
+            userRepository.save(author);
+        }
 
         return toDTO(article);
     }
@@ -105,6 +137,13 @@ public class ArticleService {
         }
         if (request.getTravelDate() != null) {
             article.setTravelDate(request.getTravelDate());
+        }
+        if (request.getStatus() != null) {
+            article.setStatus(request.getStatus());
+        }
+        if (request.getCategoryId() != null) {
+            categoryRepository.findById(request.getCategoryId())
+                    .ifPresent(article::setCategory);
         }
 
         article = articleRepository.save(article);
@@ -159,11 +198,31 @@ public class ArticleService {
     }
 
     /**
+     * 按分类获取文章
+     */
+    public Page<ArticleDTO> getArticlesByCategory(Long categoryId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return articleRepository.findByCategoryIdAndStatusOrderByCreatedAtDesc(categoryId, "PUBLISHED", pageable)
+                .map(this::toDTO);
+    }
+
+    /**
+     * 获取热门文章排行
+     */
+    public List<ArticleDTO> getHotArticles(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return articleRepository.findByStatusOrderByViewCountDesc("PUBLISHED", pageable)
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 转换为DTO
      */
     private ArticleDTO toDTO(Article article) {
         User author = article.getAuthor();
-        return ArticleDTO.builder()
+        ArticleDTO.ArticleDTOBuilder builder = ArticleDTO.builder()
                 .id(article.getId())
                 .title(article.getTitle())
                 .content(article.getContent())
@@ -172,6 +231,7 @@ public class ArticleService {
                 .authorId(author.getId())
                 .authorName(author.getUsername())
                 .authorAvatar(author.getAvatar())
+                .status(article.getStatus())
                 .tags(article.getTags())
                 .location(article.getLocation())
                 .travelDate(article.getTravelDate())
@@ -179,7 +239,13 @@ public class ArticleService {
                 .likeCount(article.getLikeCount())
                 .commentCount(article.getCommentCount())
                 .createdAt(article.getCreatedAt())
-                .updatedAt(article.getUpdatedAt())
-                .build();
+                .updatedAt(article.getUpdatedAt());
+
+        if (article.getCategory() != null) {
+            builder.categoryId(article.getCategory().getId())
+                    .categoryName(article.getCategory().getName());
+        }
+
+        return builder.build();
     }
 }

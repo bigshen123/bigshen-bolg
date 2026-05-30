@@ -24,7 +24,7 @@ public class MediaController {
      */
     @PostMapping("/upload")
     public ResponseEntity<Media> uploadImage(@RequestParam("file") MultipartFile file,
-                                               @RequestParam Long articleId) {
+                                               @RequestParam(required = false, defaultValue = "0") Long articleId) {
         Media media = mediaService.uploadImage(file, articleId);
         return ResponseEntity.ok(media);
     }

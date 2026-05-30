@@ -26,13 +26,33 @@ public class CommentService {
     private final UserRepository userRepository;
 
     /**
-     * 获取文章评论列表
+     * 获取文章评论列表(排除已删除)
      */
     public List<CommentDTO> getCommentsByArticleId(Long articleId) {
-        return commentRepository.findByArticleIdAndParentIsNullOrderByCreatedAtDesc(articleId)
+        return commentRepository.findByArticleIdAndParentIsNullAndStatusNotOrderByCreatedAtDesc(articleId, "DELETED")
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取所有评论（管理员）
+     */
+    public List<CommentDTO> getAllComments() {
+        return commentRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 软删除评论
+     */
+    public void softDeleteComment(Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("评论不存在"));
+        comment.setStatus("DELETED");
+        commentRepository.save(comment);
     }
 
     /**
@@ -103,7 +123,8 @@ public class CommentService {
                 .username(comment.getUser().getUsername())
                 .userAvatar(comment.getUser().getAvatar())
                 .parentId(comment.getParent() != null ? comment.getParent().getId() : null)
-                .repliesDTO(replyDTOs)
+                .status(comment.getStatus())
+                .replies(replyDTOs)
                 .createdAt(comment.getCreatedAt())
                 .build();
     }

@@ -24,6 +24,9 @@ public class ArticleDTO {
     private Long authorId;
     private String authorName;
     private String authorAvatar;
+    private String status;
+    private Long categoryId;
+    private String categoryName;
     private List<String> tags;
     private String location;
     private LocalDate travelDate;
