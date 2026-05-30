@@ -11,4 +11,7 @@ import java.util.List;
 @Repository
 public interface MediaRepository extends JpaRepository<Media, Long> {
     List<Media> findByArticleId(Long articleId);
+
+    /** 查询独立图库照片（不关联文章的媒体） */
+    List<Media> findByArticleIsNullOrderByCreatedAtDesc();
 }

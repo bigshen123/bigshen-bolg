@@ -62,12 +62,18 @@ export const ArticleCard = ({
     return (
         <Card onClick={onClick}>
             {/* 封面图 */}
-            <div className="relative h-48 overflow-hidden rounded-t-2xl">
-                <img
-                    src={coverImage || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600'}
-                    alt={title}
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                />
+            <div className="relative h-48 overflow-hidden rounded-t-2xl bg-gradient-to-br from-pink-100 to-purple-100">
+                {coverImage ? (
+                    <img
+                        src={coverImage}
+                        alt={title}
+                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-4xl opacity-30">
+                        📷
+                    </div>
+                )}
                 {location && (
                     <span className="absolute top-3 left-3 px-3 py-1 bg-white/90 backdrop-blur-sm
                                    rounded-full text-xs font-medium text-gray-700 flex items-center gap-1">

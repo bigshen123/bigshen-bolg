@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-    Settings, Heart, BookOpen,
-    Edit3, LogOut, Mail, Globe, Loader2,
+    Settings, Heart, BookOpen, FileText,
+    Edit3, LogOut, Mail, Globe, Loader2, Lock,
 } from 'lucide-react';
 import { useThemeContext } from '../components/theme/ThemeProvider';
 import AnimalAvatar from '../components/theme/AnimalAvatar';
@@ -12,6 +12,7 @@ import Button from '../components/common/Button';
 import { getAnimalList } from '../utils/themeUtils';
 import { userService } from '../services/userService';
 import { articleService } from '../services/articleService';
+import { favoriteService } from '../services/favoriteService';
 import { formatDate } from '../utils/validation';
 import type { User } from '../types/user';
 import type { Article } from '../types/article';
@@ -23,13 +24,21 @@ const ProfilePage = () => {
     const { config, randomizeTheme, setAnimal } = useThemeContext();
     const animals = getAnimalList();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'articles' | 'likes' | 'settings'>('articles');
+    const [activeTab, setActiveTab] = useState<'articles' | 'drafts' | 'likes' | 'settings'>('articles');
 
     const [user, setUser] = useState<User | null>(null);
     const [userArticles, setUserArticles] = useState<Article[]>([]);
+    const [favorites, setFavorites] = useState<Article[]>([]);
+    const [drafts, setDrafts] = useState<Article[]>([]);
     const [loading, setLoading] = useState(true);
+    const [favLoading, setFavLoading] = useState(false);
     const [editing, setEditing] = useState(false);
     const [editForm, setEditForm] = useState({ username: '', bio: '', email: '' });
+    // 密码修改相关状态
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
+    const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    const [changingPassword, setChangingPassword] = useState(false);
+    const [passwordMsg, setPasswordMsg] = useState('');
 
     /**
      * 从 localStorage 获取当前用户信息
@@ -81,18 +90,19 @@ const ProfilePage = () => {
     }, []);
 
     /**
-     * 加载用户的文章
+     * 加载用户的文章和草稿
      */
     useEffect(() => {
         const loadUserArticles = async () => {
+            if (!user) return;
             try {
-                const result = await articleService.getArticles(0, 20);
+                // 获取所有状态的文章（包括草稿）
+                const result = await articleService.getArticles(0, 100);
                 if (result) {
                     const data = result as unknown as { content: Article[] };
                     const all = data.content || [];
-                    if (user) {
-                        setUserArticles(all.filter((a) => a.authorId === user.id));
-                    }
+                    setUserArticles(all.filter((a) => a.authorId === user.id && a.status === 'PUBLISHED'));
+                    setDrafts(all.filter((a) => a.authorId === user.id && a.status === 'DRAFT'));
                 }
             } catch (err) {
                 console.error('加载用户文章失败:', err);
@@ -102,6 +112,35 @@ const ProfilePage = () => {
             loadUserArticles();
         }
     }, [user]);
+
+    /**
+     * 加载我的收藏
+     */
+    const loadFavorites = async () => {
+        if (!user) return;
+        try {
+            setFavLoading(true);
+            const result = await favoriteService.getUserFavorites(user.id, 0, 50);
+            if (result) {
+                const data = result as unknown as { content: Article[] };
+                setFavorites(data.content || []);
+            }
+        } catch (err) {
+            console.error('加载收藏失败:', err);
+        } finally {
+            setFavLoading(false);
+        }
+    };
+
+    /**
+     * 切换标签时加载收藏
+     */
+    useEffect(() => {
+        if (activeTab === 'likes' && user) {
+            loadFavorites();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, user]);
 
     /**
      * 保存编辑
@@ -121,6 +160,43 @@ const ProfilePage = () => {
     };
 
     /**
+     * 修改密码
+     */
+    const handleChangePassword = async () => {
+        if (!user) return;
+        const { oldPassword, newPassword, confirmPassword } = passwordForm;
+
+        if (!oldPassword || !newPassword || !confirmPassword) {
+            setPasswordMsg('请填写所有密码字段');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setPasswordMsg('两次输入的新密码不一致');
+            return;
+        }
+        if (newPassword.length < 6) {
+            setPasswordMsg('新密码长度不能少于6位');
+            return;
+        }
+
+        try {
+            setChangingPassword(true);
+            setPasswordMsg('');
+            await userService.changePassword(user.id, oldPassword, newPassword);
+            setPasswordMsg('密码修改成功!');
+            setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+            setTimeout(() => {
+                setShowPasswordForm(false);
+                setPasswordMsg('');
+            }, 1500);
+        } catch (err) {
+            setPasswordMsg('修改失败，请检查旧密码是否正确');
+        } finally {
+            setChangingPassword(false);
+        }
+    };
+
+    /**
      * 退出登录
      */
     const handleLogout = () => {
@@ -130,10 +206,11 @@ const ProfilePage = () => {
     };
 
     const tabs = [
-        { key: 'articles', label: '我的文章', icon: <BookOpen size={16} /> },
-        { key: 'likes', label: '我的收藏', icon: <Heart size={16} /> },
-        { key: 'settings', label: '账号设置', icon: <Settings size={16} /> },
-    ] as const;
+        { key: 'articles' as const, label: '我的文章', icon: <BookOpen size={16} /> },
+        { key: 'drafts' as const, label: '我的草稿', icon: <FileText size={16} /> },
+        { key: 'likes' as const, label: '我的收藏', icon: <Heart size={16} /> },
+        { key: 'settings' as const, label: '账号设置', icon: <Settings size={16} /> },
+    ];
 
     if (loading) {
         return (
@@ -251,12 +328,12 @@ const ProfilePage = () => {
             </motion.div>
 
             {/* 标签页 */}
-            <div className="flex gap-1 mb-6 bg-white rounded-2xl p-1.5 shadow-sm">
+            <div className="flex gap-1 mb-6 bg-white rounded-2xl p-1.5 shadow-sm overflow-x-auto">
                 {tabs.map((tab) => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl
+                        className={`flex-shrink-0 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl
                                  text-sm font-medium transition-all ${
                             activeTab === tab.key
                                 ? 'bg-pink-50 text-pink-500 shadow-sm'
@@ -265,6 +342,11 @@ const ProfilePage = () => {
                     >
                         {tab.icon}
                         {tab.label}
+                        {tab.key === 'drafts' && drafts.length > 0 && (
+                            <span className="text-xs bg-pink-100 text-pink-500 px-1.5 rounded-full">
+                                {drafts.length}
+                            </span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -302,16 +384,142 @@ const ProfilePage = () => {
                 )
             )}
 
+            {activeTab === 'drafts' && (
+                drafts.length === 0 ? (
+                    <div className="text-center py-16 text-gray-400">
+                        <FileText size={48} className="mx-auto mb-4 text-gray-300" />
+                        <p>暂无草稿</p>
+                        <p className="text-sm mt-1">写文章时选择"存草稿"即可保存</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {drafts.map((article, i) => (
+                            <motion.div
+                                key={article.id}
+                                className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer
+                                         hover:shadow-md transition-all border-l-4 border-yellow-400"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.1 }}
+                                whileHover={{ y: -2 }}
+                                onClick={() => navigate(`/article/${article.id}/edit`)}
+                            >
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-xs bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full">草稿</span>
+                                </div>
+                                <h3 className="font-semibold text-gray-800 mb-2">{article.title}</h3>
+                                <p className="text-xs text-gray-400">📅 {formatDate(article.createdAt)}</p>
+                            </motion.div>
+                        ))}
+                    </div>
+                )
+            )}
+
             {activeTab === 'likes' && (
-                <div className="text-center py-16 text-gray-400">
-                    <Heart size={48} className="mx-auto mb-4 text-gray-300" />
-                    <p>还没有收藏任何文章哦~</p>
-                    <p className="text-sm mt-1">快去发现精彩的旅行故事吧</p>
-                </div>
+                favLoading ? (
+                    <div className="flex justify-center py-16">
+                        <Loader2 size={24} className="animate-spin text-gray-400" />
+                    </div>
+                ) : favorites.length === 0 ? (
+                    <div className="text-center py-16 text-gray-400">
+                        <Heart size={48} className="mx-auto mb-4 text-gray-300" />
+                        <p>还没有收藏任何文章哦~</p>
+                        <p className="text-sm mt-1">快去发现精彩的旅行故事吧</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {favorites.map((article, i) => (
+                            <motion.div
+                                key={article.id}
+                                className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer
+                                         hover:shadow-md transition-all"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.1 }}
+                                whileHover={{ y: -2 }}
+                                onClick={() => navigate(`/article/${article.id}`)}
+                            >
+                                <h3 className="font-semibold text-gray-800 mb-2">{article.title}</h3>
+                                <div className="flex items-center gap-3 text-xs text-gray-400">
+                                    <span>{article.authorName}</span>
+                                    <span>📅 {formatDate(article.createdAt)}</span>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                )
             )}
 
             {activeTab === 'settings' && (
                 <div className="space-y-6">
+                    {/* 修改密码 */}
+                    <div className="bg-white rounded-2xl p-4 shadow-sm">
+                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <Lock size={16} /> 修改密码
+                        </h3>
+                        {!showPasswordForm ? (
+                            <button
+                                onClick={() => setShowPasswordForm(true)}
+                                className="text-sm text-pink-500 hover:text-pink-600 px-3 py-1.5 rounded-lg
+                                         hover:bg-pink-50 transition-colors"
+                            >
+                                点击修改密码
+                            </button>
+                        ) : (
+                            <div className="space-y-3">
+                                <input
+                                    type="password"
+                                    placeholder="旧密码"
+                                    value={passwordForm.oldPassword}
+                                    onChange={(e) => setPasswordForm((f) => ({ ...f, oldPassword: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-gray-50 rounded-xl text-sm outline-none
+                                             border-2 border-transparent focus:border-pink-200"
+                                />
+                                <input
+                                    type="password"
+                                    placeholder="新密码（至少6位）"
+                                    value={passwordForm.newPassword}
+                                    onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-gray-50 rounded-xl text-sm outline-none
+                                             border-2 border-transparent focus:border-pink-200"
+                                />
+                                <input
+                                    type="password"
+                                    placeholder="确认新密码"
+                                    value={passwordForm.confirmPassword}
+                                    onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-gray-50 rounded-xl text-sm outline-none
+                                             border-2 border-transparent focus:border-pink-200"
+                                />
+                                {passwordMsg && (
+                                    <p className={`text-xs ${passwordMsg.includes('成功') ? 'text-green-500' : 'text-red-500'}`}>
+                                        {passwordMsg}
+                                    </p>
+                                )}
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        onClick={handleChangePassword}
+                                        disabled={changingPassword}
+                                    >
+                                        {changingPassword ? '修改中...' : '确认修改'}
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setShowPasswordForm(false);
+                                            setPasswordMsg('');
+                                            setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                                        }}
+                                    >
+                                        取消
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* 主题设置 */}
                     <ColorGenerator />
 

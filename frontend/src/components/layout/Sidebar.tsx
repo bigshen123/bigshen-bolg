@@ -23,7 +23,15 @@ const Sidebar = () => {
         }
     }, []);
 
-    const popularTags = ['日本', '海边', '美食', '露营', '城市漫步', '雪山', '古镇', '花海'];
+    // 热门标签从文章数据动态提取（后续可改为独立 API）
+    const popularTags = useMemo(() => {
+        try {
+            // 从已加载的文章中聚合标签（使用 sessionStorage 缓存）
+            const cached = sessionStorage.getItem('popular-tags');
+            if (cached) return JSON.parse(cached);
+        } catch { /* ignore */ }
+        return [];
+    }, []);
 
     return (
         <aside className="hidden lg:block w-72 flex-shrink-0">

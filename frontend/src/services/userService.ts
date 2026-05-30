@@ -24,4 +24,8 @@ export const userService = {
         const response = await api.put<User>(`/users/${userId}`, data);
         return response.data;
     },
+
+    changePassword: async (userId: number, oldPassword: string, newPassword: string): Promise<void> => {
+        await api.put(`/users/${userId}/password`, { oldPassword, newPassword });
+    },
 };

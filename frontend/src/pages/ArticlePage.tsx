@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Heart, Share2, MessageCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Heart, Share2, MessageCircle, Loader2, Check, Copy } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useThemeContext } from '../components/theme/ThemeProvider';
 import AnimalAvatar from '../components/theme/AnimalAvatar';
+import FollowButton from '../components/common/FollowButton';
 import Button from '../components/common/Button';
 import { formatDate, formatCount } from '../utils/validation';
 import { articleService } from '../services/articleService';
@@ -25,8 +28,11 @@ const ArticlePage = () => {
     const [commentText, setCommentText] = useState('');
     const [submittingComment, setSubmittingComment] = useState(false);
     const [liking, setLiking] = useState(false);
+    const [isLiked, setIsLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(0);
     const [replyText, setReplyText] = useState<Record<number, string>>({});
     const [replying, setReplying] = useState<number | null>(null);
+    const [shareToast, setShareToast] = useState(false);
 
     /**
      * 加载文章详情
@@ -37,11 +43,23 @@ const ArticlePage = () => {
             setLoading(true);
             const data = await articleService.getArticleById(Number(id));
             setArticle(data);
+            setLikeCount(data.likeCount);
         } catch (err) {
             console.error('加载文章详情失败:', err);
         } finally {
             setLoading(false);
         }
+    }, [id]);
+
+    /**
+     * 检查点赞状态
+     */
+    const checkLiked = useCallback(async () => {
+        if (!id) return;
+        try {
+            const liked = await articleService.checkLiked(Number(id));
+            setIsLiked(liked);
+        } catch { /* 未登录时忽略 */ }
     }, [id]);
 
     /**
@@ -60,23 +78,58 @@ const ArticlePage = () => {
     useEffect(() => {
         loadArticle();
         loadComments();
-    }, [loadArticle, loadComments]);
+        checkLiked();
+    }, [loadArticle, loadComments, checkLiked]);
 
     /**
-     * 点赞文章
+     * 点赞文章（toggle 模式）
      */
     const handleLike = async () => {
         if (!id || liking) return;
         try {
             setLiking(true);
-            const updated = await articleService.likeArticle(Number(id));
-            if (updated) {
-                setArticle(updated);
+            const result = await articleService.likeArticle(Number(id));
+            if (result) {
+                setIsLiked(result.isLiked);
+                setLikeCount(result.likeCount);
             }
         } catch (err) {
             console.error('点赞失败:', err);
         } finally {
             setLiking(false);
+        }
+    };
+
+    /**
+     * 分享文章
+     */
+    const handleShare = async () => {
+        if (!article) return;
+        const url = window.location.href;
+        const title = article.title;
+
+        // 优先使用 Web Share API（移动端原生分享）
+        if (navigator.share) {
+            try {
+                await navigator.share({ title, url });
+            } catch { /* 用户取消分享 */ }
+        } else {
+            // 桌面端：复制链接
+            try {
+                await navigator.clipboard.writeText(url);
+                setShareToast(true);
+                setTimeout(() => setShareToast(false), 2000);
+            } catch {
+                // 降级方案
+                const input = document.createElement('input');
+                input.value = url;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                setShareToast(true);
+                setTimeout(() => setShareToast(false), 2000);
+            }
         }
     };
 
@@ -140,6 +193,20 @@ const ArticlePage = () => {
 
     return (
         <div className="max-w-4xl mx-auto">
+            {/* 分享 Toast */}
+            {shareToast && (
+                <motion.div
+                    className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white
+                             px-5 py-2.5 rounded-full text-sm flex items-center gap-2 shadow-lg"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                >
+                    <Check size={16} className="text-green-400" />
+                    链接已复制到剪贴板
+                </motion.div>
+            )}
+
             {/* 返回按钮 */}
             <button
                 onClick={() => navigate(-1)}
@@ -168,6 +235,14 @@ const ArticlePage = () => {
                             <div className="font-semibold">{article.authorName}</div>
                             <div className="text-sm text-white/70">{formatDate(article.createdAt)}</div>
                         </div>
+                        {/* 关注按钮（非本人时显示） */}
+                        {article.authorId && (
+                            <FollowButton
+                                userId={article.authorId}
+                                userName={article.authorName}
+                                className="ml-2"
+                            />
+                        )}
                     </div>
                     <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{article.title}</h1>
                     <div className="flex flex-wrap items-center gap-3 text-white/80 text-sm">
@@ -196,34 +271,42 @@ const ArticlePage = () => {
                 </div>
             )}
 
-            {/* 文章内容 */}
+            {/* 文章内容 - 使用 react-markdown 渲染 */}
             <motion.div
                 className="bg-white rounded-3xl shadow-sm p-6 md:p-8 mb-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
             >
-                <div
-                    className="prose prose-lg max-w-none"
-                    dangerouslySetInnerHTML={{ __html: article.content }}
-                />
+                <div className="prose prose-lg max-w-none markdown-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {article.content}
+                    </ReactMarkdown>
+                </div>
             </motion.div>
 
             {/* 互动区域 */}
             <div className="flex items-center justify-center gap-4 mb-8">
                 <Button
-                    variant="outline"
-                    icon={liking ? <Loader2 size={18} className="animate-spin" /> : <Heart size={18} />}
+                    variant={isLiked ? 'primary' : 'outline'}
+                    icon={liking ? <Loader2 size={18} className="animate-spin" /> : (
+                        <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
+                    )}
                     className="rounded-full"
                     onClick={handleLike}
                     disabled={liking}
                 >
-                    {formatCount(article.likeCount)} 赞
+                    {formatCount(likeCount)} 赞
                 </Button>
                 <Button variant="outline" icon={<MessageCircle size={18} />} className="rounded-full">
-                    {article.commentCount} 评论
+                    {article.commentCount || 0} 评论
                 </Button>
-                <Button variant="outline" icon={<Share2 size={18} />} className="rounded-full">
+                <Button
+                    variant="outline"
+                    icon={<Share2 size={18} />}
+                    className="rounded-full"
+                    onClick={handleShare}
+                >
                     分享
                 </Button>
             </div>

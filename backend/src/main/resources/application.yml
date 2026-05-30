@@ -53,4 +53,4 @@ logging:
 # 文件上传路径
 file:
   upload:
-    dir: ./uploads
+    dir: uploads

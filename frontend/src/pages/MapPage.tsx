@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Navigation, Globe, Loader2 } from 'lucide-react';
+import { Navigation, Loader2 } from 'lucide-react';
 import { useThemeContext } from '../components/theme/ThemeProvider';
 import { articleService } from '../services/articleService';
 import type { Article } from '../types/article';
@@ -15,68 +15,56 @@ interface TravelSpot {
     articles: number;
 }
 
-// 预设城市坐标映射（用于从 location 字段解析坐标）
 const CITY_COORDS: Record<string, { lat: number; lng: number; emoji: string }> = {
-    // 日本
     '小樽': { lat: 43.2, lng: 141.0, emoji: '🌸' },
     '北海道': { lat: 43.06, lng: 141.35, emoji: '⛄' },
     '京都': { lat: 35.01, lng: 135.77, emoji: '🍁' },
     '山梨县': { lat: 35.60, lng: 138.57, emoji: '🗻' },
-    // 东南亚
     '巴厘岛': { lat: -8.34, lng: 115.09, emoji: '🏝️' },
     '清迈': { lat: 18.79, lng: 98.98, emoji: '🛕' },
-    // 国内
     '丽江': { lat: 26.86, lng: 100.23, emoji: '🏮' },
     '垦丁': { lat: 21.95, lng: 120.77, emoji: '🌊' },
     '敦煌': { lat: 40.05, lng: 94.67, emoji: '🏜️' },
     '厦门': { lat: 24.46, lng: 118.08, emoji: '🌴' },
-    // 欧洲
     '巴黎': { lat: 48.86, lng: 2.35, emoji: '🗼' },
     '格林德瓦': { lat: 46.62, lng: 8.04, emoji: '🏔️' },
 };
 
 /**
- * 经纬度转换为地图上的百分比坐标
- * lat: -90~90 → 85%~15% (北半球在上)
- * lng: -180~180 → 5%~95%
- */
-const latToY = (lat: number) => `${85 - (lat + 90) / 180 * 70}%`;
-const lngToX = (lng: number) => `${(lng + 180) / 360 * 90 + 5}%`;
-
-/**
- * 地图页面 - 展示旅行足迹（从文章数据动态生成）
+ * 地图页面 - 使用 Leaflet 原生 API
  */
 const MapPage = () => {
     const navigate = useNavigate();
     const { config } = useThemeContext();
     const [spots, setSpots] = useState<TravelSpot[]>([]);
     const [loading, setLoading] = useState(true);
+    const [mapError, setMapError] = useState(false);
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const mapInstanceRef = useRef<any>(null);
 
+    // 加载旅行数据
     useEffect(() => {
         const loadTravelData = async () => {
             try {
                 setLoading(true);
-                // 获取所有文章
                 const result = await articleService.getArticles(0, 100);
                 if (result) {
                     const data = result as unknown as { content: Article[] };
                     const articles = data.content || [];
-                    // 按城市聚合统计
                     const cityMap = new Map<string, { country: string; count: number }>();
                     articles.forEach((a) => {
                         if (a.location) {
-                            const cityName = a.location.replace(/^[^\s·]+[·\s]*/, ''); // 去掉国家前缀
-                            const key = cityName || a.location;
-                            const existing = cityMap.get(key);
+                            const parts = a.location.split(/[·\s]+/);
+                            const cityName = parts.length > 1 ? parts.slice(1).join('') : a.location;
+                            const cityKey = cityName || a.location;
+                            const existing = cityMap.get(cityKey);
                             if (existing) {
                                 existing.count++;
                             } else {
-                                cityMap.set(key, { country: a.location.split(/[·\s]/)[0] || '', count: 1 });
+                                cityMap.set(cityKey, { country: parts[0] || '', count: 1 });
                             }
                         }
                     });
-
-                    // 转换为 TravelSpot 列表
                     const travelSpots: TravelSpot[] = [];
                     cityMap.forEach((info, city) => {
                         const coord = CITY_COORDS[city];
@@ -91,22 +79,7 @@ const MapPage = () => {
                             });
                         }
                     });
-
-                    // 如果后端无数据，使用模拟数据
-                    if (travelSpots.length === 0) {
-                        setSpots([
-                            { name: '小樽', country: '日本', lat: 43.2, lng: 141.0, emoji: '🌸', articles: 3 },
-                            { name: '巴厘岛', country: '印度尼西亚', lat: -8.34, lng: 115.09, emoji: '🏝️', articles: 2 },
-                            { name: '丽江', country: '中国', lat: 26.86, lng: 100.23, emoji: '🏮', articles: 4 },
-                            { name: '垦丁', country: '中国', lat: 21.95, lng: 120.77, emoji: '🌊', articles: 1 },
-                            { name: '京都', country: '日本', lat: 35.01, lng: 135.77, emoji: '🍁', articles: 5 },
-                            { name: '敦煌', country: '中国', lat: 40.05, lng: 94.67, emoji: '🏜️', articles: 2 },
-                            { name: '清迈', country: '泰国', lat: 18.79, lng: 98.98, emoji: '🛕', articles: 1 },
-                            { name: '巴黎', country: '法国', lat: 48.86, lng: 2.35, emoji: '🗼', articles: 2 },
-                        ]);
-                    } else {
-                        setSpots(travelSpots);
-                    }
+                    setSpots(travelSpots);
                 }
             } catch (err) {
                 console.error('加载旅行足迹失败:', err);
@@ -117,7 +90,92 @@ const MapPage = () => {
         loadTravelData();
     }, []);
 
-    // 统计信息
+    // 初始化 Leaflet 地图（不依赖 react-leaflet，避免 ESM 兼容问题）
+    useEffect(() => {
+        if (!mapContainerRef.current || mapInstanceRef.current) return;
+
+        let cancelled = false;
+
+        const initMap = async () => {
+            try {
+                // 动态导入 Leaflet CSS
+                await import('leaflet/dist/leaflet.css');
+
+                const L = (await import('leaflet')).default;
+
+                if (cancelled || !mapContainerRef.current) return;
+
+                const map = L.map(mapContainerRef.current, {
+                    center: [30, 110],
+                    zoom: 3,
+                    zoomControl: false,
+                    attributionControl: false,
+                });
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors',
+                }).addTo(map);
+
+                mapInstanceRef.current = map;
+
+                // 添加标记
+                if (spots.length > 0) {
+                    const bounds = L.latLngBounds(
+                        spots.map((s) => [s.lat, s.lng] as L.LatLngExpression)
+                    );
+
+                    spots.forEach((spot) => {
+                        const icon = L.divIcon({
+                            html: `<div style="
+                                width:36px;height:36px;border-radius:50%;
+                                background:linear-gradient(135deg,${config.colors.primary},#4ECDC4);
+                                display:flex;align-items:center;justify-content:center;
+                                font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,0.25);
+                                border:2px solid white;
+                            ">${spot.emoji}</div>`,
+                            className: '',
+                            iconSize: [36, 36],
+                            iconAnchor: [18, 18],
+                        });
+
+                        L.marker([spot.lat, spot.lng], { icon })
+                            .addTo(map)
+                            .bindPopup(`
+                                <div style="text-align:center;min-width:120px">
+                                    <div style="font-size:16px;font-weight:bold;color:#1f2937">
+                                        ${spot.emoji} ${spot.name}
+                                    </div>
+                                    <div style="font-size:12px;color:#6b7280">${spot.country}</div>
+                                    <div style="font-size:12px;color:#ec4899;margin-top:4px">
+                                        ${spot.articles} 篇文章
+                                    </div>
+                                </div>
+                            `);
+                    });
+
+                    if (spots.length === 1) {
+                        map.setView([spots[0].lat, spots[0].lng], 5);
+                    } else {
+                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+                    }
+                }
+            } catch (err) {
+                console.error('地图初始化失败:', err);
+                if (!cancelled) setMapError(true);
+            }
+        };
+
+        initMap();
+
+        return () => {
+            cancelled = true;
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.remove();
+                mapInstanceRef.current = null;
+            }
+        };
+    }, [spots, config.colors.primary]);
+
     const uniqueCountries = new Set(spots.map((s) => s.country)).size;
     const totalCities = spots.length;
     const totalArticles = spots.reduce((sum, s) => sum + s.articles, 0);
@@ -132,9 +190,8 @@ const MapPage = () => {
 
     return (
         <div>
-            {/* 页面头部 */}
             <motion.div
-                className="mb-8"
+                className="mb-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
             >
@@ -144,70 +201,28 @@ const MapPage = () => {
                 <p className="text-gray-500">记录我去过的每一个地方</p>
             </motion.div>
 
-            {/* 地图区域 */}
+            {/* 地图 */}
             <motion.div
-                className="relative rounded-3xl overflow-hidden mb-8 h-72 md:h-96"
+                className="rounded-3xl overflow-hidden mb-8 shadow-lg bg-gray-100 relative"
+                style={{ height: '420px' }}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                style={{
-                    background: `linear-gradient(135deg, ${config.colors.primary}20, ${config.colors.secondary}20, #E8F4FD)`,
-                }}
             >
-                {/* 装饰性世界地图背景 */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <Globe size={200} className="text-gray-200 opacity-30" />
-                </div>
-
-                {/* 标记点 */}
-                {spots.map((spot) => (
-                    <motion.div
-                        key={spot.name}
-                        className="absolute cursor-pointer group"
-                        style={{
-                            top: latToY(spot.lat),
-                            left: lngToX(spot.lng),
-                        }}
-                        whileHover={{ scale: 1.5, zIndex: 10 }}
-                        whileTap={{ scale: 0.9 }}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: Math.random() * 0.5 }}
-                        onClick={() => navigate(`/category/${spot.country}`)}
-                    >
-                        <div className="relative">
-                            <div
-                                className="w-10 h-10 rounded-full flex items-center justify-center
-                                       shadow-lg text-lg animate-float"
-                                style={{
-                                    background: `linear-gradient(135deg, ${config.colors.primary}, ${config.colors.secondary})`,
-                                }}
-                            >
-                                {spot.emoji}
-                            </div>
-                            {/* 信息卡片 */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                                        bg-white rounded-xl shadow-lg p-3 whitespace-nowrap
-                                        opacity-0 group-hover:opacity-100 transition-opacity
-                                        pointer-events-none z-20">
-                                <div className="flex items-center gap-1.5 mb-1">
-                                    <MapPin size={12} className="text-pink-400" />
-                                    <span className="text-sm font-medium">{spot.name}</span>
-                                </div>
-                                <div className="text-xs text-gray-400">{spot.country}</div>
-                                <div className="text-xs text-pink-400 mt-1">{spot.articles} 篇文章</div>
-                            </div>
-                        </div>
-                    </motion.div>
-                ))}
+                {mapError ? (
+                    <div className="flex items-center justify-center h-full text-gray-400">
+                        <p>地图加载失败，请刷新页面重试</p>
+                    </div>
+                ) : (
+                    <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
+                )}
             </motion.div>
 
-            {/* 统计信息 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {/* 统计 */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
                 {[
-                    { label: '去过国家', value: String(uniqueCountries), emoji: '🌍', color: '#74B9FF' },
-                    { label: '旅行城市', value: String(totalCities), emoji: '🏙️', color: '#00B894' },
-                    { label: '旅行文章', value: String(totalArticles), emoji: '📝', color: '#FDCB6E' },
-                    { label: '旅行照片', value: '--', emoji: '📸', color: '#FF7675' },
+                    { label: '去过国家', value: String(uniqueCountries), emoji: '🌍' },
+                    { label: '旅行城市', value: String(totalCities), emoji: '🏙️' },
+                    { label: '旅行文章', value: String(totalArticles), emoji: '📝' },
                 ].map((stat, i) => (
                     <motion.div
                         key={stat.label}
@@ -224,7 +239,7 @@ const MapPage = () => {
                 ))}
             </div>
 
-            {/* 旅行清单 */}
+            {/* 清单 */}
             <div className="bg-white rounded-3xl shadow-sm p-6">
                 <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <Navigation size={18} /> 旅行足迹清单

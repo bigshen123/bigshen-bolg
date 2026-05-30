@@ -25,6 +25,8 @@ const ArticleEditPage = () => {
     const [categoryId, setCategoryId] = useState<number | null>(null);
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
+    const [location, setLocation] = useState('');
+    const [travelDate, setTravelDate] = useState('');
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(isEdit);
@@ -52,6 +54,8 @@ const ArticleEditPage = () => {
                 setStatus(article.status || 'DRAFT');
                 setCategoryId(article.categoryId || null);
                 setTags(article.tags || []);
+                setLocation(article.location || '');
+                setTravelDate(article.travelDate || '');
             }
         }).catch(console.error).finally(() => setInitialLoading(false));
     }, [id]);
@@ -109,8 +113,8 @@ const ArticleEditPage = () => {
                 status: publishStatus,
                 categoryId: categoryId || null,
                 tags,
-                location: '',
-                travelDate: '',
+                location: location.trim(),
+                travelDate: travelDate || null,
             };
 
             if (isEdit && id) {
@@ -294,6 +298,36 @@ const ArticleEditPage = () => {
                             ))}
                         </div>
                     )}
+                </div>
+            </motion.div>
+
+            {/* 旅行地点和日期 */}
+            <motion.div
+                className="bg-white rounded-3xl shadow-sm p-6 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18 }}
+            >
+                <div>
+                    <label className="text-sm font-medium text-gray-600 mb-2 block">📍 旅行地点</label>
+                    <input
+                        type="text"
+                        placeholder="例如：日本·京都"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        className="w-full p-3 bg-gray-50 rounded-xl outline-none border-2 border-transparent
+                                 focus:border-pink-200 text-sm"
+                    />
+                </div>
+                <div>
+                    <label className="text-sm font-medium text-gray-600 mb-2 block">📅 旅行日期</label>
+                    <input
+                        type="date"
+                        value={travelDate}
+                        onChange={(e) => setTravelDate(e.target.value)}
+                        className="w-full p-3 bg-gray-50 rounded-xl outline-none border-2 border-transparent
+                                 focus:border-pink-200 text-sm"
+                    />
                 </div>
             </motion.div>
 

@@ -1,5 +1,6 @@
 package com.bigshen.blog.controller;
 
+import com.bigshen.blog.dto.ChangePasswordRequest;
 import com.bigshen.blog.dto.UserDTO;
 import com.bigshen.blog.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -61,5 +62,15 @@ public class UserController {
     public ResponseEntity<UserDTO> updateRole(@PathVariable Long id,
                                                @RequestBody Map<String, String> body) {
         return ResponseEntity.ok(userService.updateUserRole(id, body.get("role")));
+    }
+
+    /**
+     * 修改密码
+     */
+    @PutMapping("/{id}/password")
+    public ResponseEntity<Map<String, String>> changePassword(@PathVariable Long id,
+                                                               @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(id, request.getOldPassword(), request.getNewPassword());
+        return ResponseEntity.ok(Map.of("message", "密码修改成功"));
     }
 }

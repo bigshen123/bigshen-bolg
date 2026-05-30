@@ -32,9 +32,14 @@ export const articleService = {
         return true;
     },
 
-    likeArticle: async (id: number): Promise<Article | null> => {
-        const response = await api.post<Article>(`/articles/${id}/like`);
+    likeArticle: async (id: number): Promise<{ likeCount: number; isLiked: boolean } | null> => {
+        const response = await api.post<{ likeCount: number; isLiked: boolean }>(`/articles/${id}/like`);
         return response.data;
+    },
+
+    checkLiked: async (id: number): Promise<boolean> => {
+        const response = await api.get<{ isLiked: boolean }>(`/articles/${id}/liked`);
+        return response.data.isLiked;
     },
 
     getArticlesByTag: async (tag: string, page = 0, size = 10): Promise<PageResponse<Article> | null> => {

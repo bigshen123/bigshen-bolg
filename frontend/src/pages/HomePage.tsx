@@ -1,20 +1,23 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Sparkles, ChevronDown, Loader2 } from 'lucide-react';
 import { useThemeContext } from '../components/theme/ThemeProvider';
 import { ArticleCard } from '../components/common/Card';
 import Sidebar from '../components/layout/Sidebar';
 import { articleService } from '../services/articleService';
+import { categoryService } from '../services/categoryService';
 import { formatDate } from '../utils/validation';
-import type { Article } from '../types/article';
+import type { Article, Category } from '../types/article';
 
-const FEATURED_DESTINATIONS = [
-    { name: '日本·北海道', emoji: '⛄', color: '#74B9FF' },
-    { name: '巴厘岛', emoji: '🌴', color: '#00B894' },
-    { name: '云南·丽江', emoji: '🏮', color: '#E17055' },
-    { name: '京都', emoji: '🍁', color: '#FD79A8' },
-];
+// 分类对应的颜色和 emoji
+const CATEGORY_STYLES: Record<string, { emoji: string; color: string }> = {
+    '日本': { emoji: '🌸', color: '#FF7675' },
+    '东南亚': { emoji: '🌴', color: '#00B894' },
+    '国内游': { emoji: '🏮', color: '#E17055' },
+    '欧洲': { emoji: '🏰', color: '#6C5CE7' },
+    '户外露营': { emoji: '⛺', color: '#74B9FF' },
+};
 
 const PAGE_SIZE = 10;
 
@@ -23,6 +26,7 @@ const PAGE_SIZE = 10;
  */
 const HomePage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { config, randomizeTheme } = useThemeContext();
     const [articles, setArticles] = useState<Article[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -31,6 +35,35 @@ const HomePage = () => {
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [featuredCategories, setFeaturedCategories] = useState<Category[]>([]);
+
+    /**
+     * 从URL参数读取搜索关键词并自动搜索
+     */
+    useEffect(() => {
+        const searchParam = searchParams.get('search');
+        if (searchParam) {
+            setSearchQuery(searchParam);
+            setActiveFilter('all');
+        }
+    }, [searchParams]);
+
+    /**
+     * 从文章列表中提取热门标签并缓存
+     */
+    const cachePopularTags = (articleList: Article[]) => {
+        const tagCount = new Map<string, number>();
+        articleList.forEach((a) => {
+            a.tags?.forEach((t) => tagCount.set(t, (tagCount.get(t) || 0) + 1));
+        });
+        const sorted = [...tagCount.entries()]
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 8)
+            .map(([tag]) => tag);
+        try {
+            sessionStorage.setItem('popular-tags', JSON.stringify(sorted));
+        } catch { /* ignore */ }
+    };
 
     /**
      * 从后端加载文章列表
@@ -55,6 +88,8 @@ const HomePage = () => {
                     setArticles((prev) => [...prev, ...articleList]);
                 } else {
                     setArticles(articleList);
+                    // 缓存热门标签到 sessionStorage 供侧边栏使用
+                    cachePopularTags(articleList);
                 }
                 setHasMore(currentPage + 1 < data.totalPages);
             }
@@ -95,8 +130,23 @@ const HomePage = () => {
 
     // 初次加载
     useEffect(() => {
-        loadArticles(0);
-    }, [loadArticles]);
+        // 如果URL带有搜索参数则直接搜索
+        const searchParam = searchParams.get('search');
+        if (searchParam) {
+            searchArticles();
+        } else {
+            loadArticles(0);
+        }
+        // 加载分类作为精选目的地（按文章数排序，选Top4）
+        categoryService.getAllCategories().then((cats) => {
+            const withArticles = cats
+                .filter((c) => c.articleCount > 0)
+                .sort((a, b) => b.articleCount - a.articleCount)
+                .slice(0, 4);
+            setFeaturedCategories(withArticles);
+        }).catch(console.error);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // 筛选或搜索变化时重新查询
     useEffect(() => {
@@ -162,26 +212,37 @@ const HomePage = () => {
                     <div className="absolute top-10 left-10 text-2xl opacity-25 animate-float" style={{ animationDelay: '2s' }}>☁️</div>
                 </motion.div>
 
-                {/* 精选目的地 */}
-                <div className="mb-8">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <span>🌟</span> 精选目的地
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {FEATURED_DESTINATIONS.map((dest) => (
-                            <motion.div
-                                key={dest.name}
-                                className="relative rounded-2xl p-4 text-center cursor-pointer overflow-hidden"
-                                style={{ background: `${dest.color}20` }}
-                                whileHover={{ scale: 1.05, background: `${dest.color}40` }}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                <div className="text-3xl mb-2">{dest.emoji}</div>
-                                <div className="text-sm font-medium text-gray-700">{dest.name}</div>
-                            </motion.div>
-                        ))}
+                {/* 精选目的地（动态加载分类数据） */}
+                {featuredCategories.length > 0 && (
+                    <div className="mb-8">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <span>🌟</span> 精选目的地
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {featuredCategories.map((cat) => {
+                                const style = CATEGORY_STYLES[cat.name] || { emoji: '🌍', color: '#636E72' };
+                                return (
+                                    <motion.div
+                                        key={cat.id}
+                                        className="relative rounded-2xl p-4 text-center cursor-pointer overflow-hidden"
+                                        style={{ background: `${style.color}20` }}
+                                        whileHover={{ scale: 1.05, background: `${style.color}40` }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => navigate(`/category/${cat.name}`)}
+                                    >
+                                        <div className="text-3xl mb-2">{style.emoji}</div>
+                                        <div className="text-sm font-medium text-gray-700">
+                                            {cat.name}
+                                        </div>
+                                        <div className="text-xs text-gray-400 mt-1">
+                                            {cat.articleCount} 篇文章
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* 搜索和筛选 */}
                 <div className="mb-6 space-y-3">

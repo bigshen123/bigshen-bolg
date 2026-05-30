@@ -37,4 +37,21 @@ public class MediaController {
         List<Media> mediaList = mediaService.getMediaByArticleId(articleId);
         return ResponseEntity.ok(mediaList);
     }
+
+    /**
+     * 获取独立图库照片（相册页面上传的）
+     */
+    @GetMapping("/gallery")
+    public ResponseEntity<List<Media>> getGalleryPhotos() {
+        return ResponseEntity.ok(mediaService.getGalleryPhotos());
+    }
+
+    /**
+     * 删除图库照片
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteMedia(@PathVariable Long id) {
+        mediaService.deleteMedia(id);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -7,7 +7,9 @@ import com.bigshen.blog.model.User;
 import com.bigshen.blog.repository.ArticleRepository;
 import com.bigshen.blog.repository.CommentRepository;
 import com.bigshen.blog.repository.UserRepository;
+import com.bigshen.blog.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,7 @@ import java.util.stream.Collectors;
 /**
  * 评论服务
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CommentService {
@@ -24,6 +27,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final ArticleRepository articleRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     /**
      * 获取文章评论列表(排除已删除)
@@ -77,6 +81,18 @@ public class CommentService {
         article.setCommentCount(article.getCommentCount() + 1);
         articleRepository.save(article);
 
+        // 评论通知文章作者（非自评时）
+        if (!article.getAuthor().getId().equals(user.getId())) {
+            log.info("尝试创建评论通知: 评论者={}, 文章作者={}, 文章={}",
+                    user.getUsername(), article.getAuthor().getUsername(), article.getTitle());
+            notificationService.createNotification(
+                    article.getAuthor().getId(),
+                    "REPLY",
+                    user.getUsername() + " 评论了你的文章《" + article.getTitle() + "》",
+                    article.getId()
+            );
+        }
+
         return toDTO(comment);
     }
 
@@ -103,6 +119,18 @@ public class CommentService {
         Article article = parent.getArticle();
         article.setCommentCount(article.getCommentCount() + 1);
         articleRepository.save(article);
+
+        // 回复通知原评论者（非自回时）
+        if (!parent.getUser().getId().equals(user.getId())) {
+            log.info("尝试创建回复通知: 回复者={}, 原评论者={}, 文章={}",
+                    user.getUsername(), parent.getUser().getUsername(), article.getTitle());
+            notificationService.createNotification(
+                    parent.getUser().getId(),
+                    "REPLY",
+                    user.getUsername() + " 回复了你的评论",
+                    article.getId()
+            );
+        }
 
         return toDTO(reply);
     }

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Menu, X, Home, Image, Map, Compass, PenLine, Shield } from 'lucide-react';
 import { useThemeContext } from '../theme/ThemeProvider';
 import AnimalAvatar from '../theme/AnimalAvatar';
+import NotificationBell from './NotificationBell';
 
 const NAV_ITEMS = [
     { path: '/', label: '首页', icon: <Home size={18} /> },
@@ -19,6 +20,7 @@ const Header = () => {
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
+    const [searchText, setSearchText] = useState('');
 
     // 检查当前用户是否为管理员
     const isAdmin = useMemo(() => {
@@ -30,6 +32,18 @@ const Header = () => {
             return false;
         }
     }, []);
+
+    /**
+     * 搜索回车跳转首页并携带搜索关键词
+     */
+    const handleSearch = () => {
+        const trimmed = searchText.trim();
+        if (trimmed) {
+            navigate(`/?search=${encodeURIComponent(trimmed)}`);
+            setSearchOpen(false);
+            setSearchText('');
+        }
+    };
 
     return (
         <header
@@ -84,6 +98,9 @@ const Header = () => {
                     >
                         <Search size={18} />
                     </button>
+
+                    {/* 通知铃铛 */}
+                    <NotificationBell />
 
                     {/* 换肤按钮 */}
                     <button
@@ -140,8 +157,13 @@ const Header = () => {
                             <input
                                 type="text"
                                 placeholder="搜索旅行文章..."
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSearch();
+                                }}
                                 className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100
-                                         border-2 border-transparent focus:border-primary-pink
+                                         border-2 border-transparent focus:border-pink-300
                                          focus:bg-white outline-none transition-all"
                             />
                         </div>

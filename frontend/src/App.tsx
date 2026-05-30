@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
 import CategoryPage from './pages/CategoryPage';
 import FavoritesPage from './pages/FavoritesPage';
+import NotificationPage from './pages/NotificationPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminArticles from './pages/admin/AdminArticles';
 import AdminCategories from './pages/admin/AdminCategories';
@@ -55,6 +56,7 @@ function App() {
                     <Route path="/gallery" element={<GalleryPage />} />
                     <Route path="/map" element={<MapPage />} />
                     <Route path="/favorites" element={<FavoritesPage />} />
+                    <Route path="/notifications" element={<NotificationPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                 </Route>
                 {/* 默认重定向到首页 */}

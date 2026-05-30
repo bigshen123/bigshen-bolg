@@ -43,15 +43,24 @@ public class SecurityConfig {
                 .requestMatchers("POST", "/api/categories/**").hasRole("ADMIN")
                 .requestMatchers("PUT", "/api/categories/**").hasRole("ADMIN")
                 .requestMatchers("DELETE", "/api/categories/**").hasRole("ADMIN")
-                // 媒体文件查看公开，上传需要认证
+                // 媒体文件查看公开，上传和删除需要认证
                 .requestMatchers("GET", "/api/media/**").permitAll()
                 .requestMatchers("POST", "/api/media/**").authenticated()
+                .requestMatchers("DELETE", "/api/media/**").authenticated()
+                // 静态文件（上传的图片等）公开访问
+                .requestMatchers("/uploads/**").permitAll()
                 // H2控制台
                 .requestMatchers("/h2-console/**").permitAll()
                 // 管理员接口
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // 收藏接口需要认证
                 .requestMatchers("/api/favorites/**").authenticated()
+                // 关注接口需要认证
+                .requestMatchers("/api/follow/**").authenticated()
+                // 通知接口需要认证
+                .requestMatchers("/api/notifications/**").authenticated()
+                // 点赞检查需要认证
+                .requestMatchers("GET", "/api/articles/*/liked").authenticated()
                 // 其他所有接口需要认证
                 .anyRequest().authenticated()
             )

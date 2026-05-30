@@ -9,6 +9,7 @@ import com.bigshen.blog.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,16 +29,85 @@ public class DataInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
     private final CategoryRepository categoryRepository;
     private final ArticleRepository articleRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
     public void run(String... args) {
+        // 修复旧表结构（ddl-auto:update 不会改已有列约束）
+        fixDatabaseSchema();
         fixExistingUsers();
         initAdminUser();
         initSampleUsers();
         initCategories();
         initSampleArticles();
         log.info("数据初始化完成");
+    }
+
+    /**
+     * 修复数据库 schema：
+     * 1. media.article_id 改为可为空（独立图库上传不需要关联文章）
+     * 2. 确保新增表存在（ddl-auto:update 对既有H2文件库有时不建新表）
+     */
+    private void fixDatabaseSchema() {
+        try {
+            jdbcTemplate.execute(
+                "ALTER TABLE media ALTER COLUMN article_id SET NULL"
+            );
+            log.info("数据库schema修复: media.article_id 已允许 NULL");
+        } catch (Exception e) {
+            log.debug("数据库schema修复跳过: {}", e.getMessage());
+        }
+
+        // 确保 like_records 表存在
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS like_records (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    article_id BIGINT NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uk_like_user_article UNIQUE (user_id, article_id)
+                )
+            """);
+            log.info("数据库schema修复: like_records 表已就绪");
+        } catch (Exception e) {
+            log.warn("like_records 表创建失败: {}", e.getMessage());
+        }
+
+        // 确保 follows 表存在
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS follows (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    follower_id BIGINT NOT NULL,
+                    following_id BIGINT NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uk_follow_pair UNIQUE (follower_id, following_id)
+                )
+            """);
+            log.info("数据库schema修复: follows 表已就绪");
+        } catch (Exception e) {
+            log.warn("follows 表创建失败: {}", e.getMessage());
+        }
+
+        // 确保 notifications 表存在（核心：通知功能依赖此表）
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    type VARCHAR(20) NOT NULL,
+                    message VARCHAR(500) NOT NULL,
+                    related_id BIGINT,
+                    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """);
+            log.info("数据库schema修复: notifications 表已就绪");
+        } catch (Exception e) {
+            log.warn("notifications 表创建失败: {}", e.getMessage());
+        }
     }
 
     // ==================== 用户初始化 ====================

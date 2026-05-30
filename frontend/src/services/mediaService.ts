@@ -28,4 +28,15 @@ export const mediaService = {
         const response = await api.get<MediaItem[]>(`/media/article/${articleId}`);
         return response.data;
     },
+
+    /** 获取独立图库照片（相册页面上传的） */
+    getGalleryPhotos: async (): Promise<MediaItem[]> => {
+        const response = await api.get<MediaItem[]>('/media/gallery');
+        return response.data;
+    },
+
+    /** 删除图库照片 */
+    deleteMedia: async (id: number): Promise<void> => {
+        await api.delete(`/media/${id}`);
+    },
 };

@@ -1,63 +1,90 @@
-import { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Search, Filter, Grid, Image as ImageIcon, Loader2, Upload } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Upload, ImageIcon, Loader2, Trash2, X, Download } from 'lucide-react';
+import { articleService } from '../services/articleService';
 import { mediaService, type MediaItem } from '../services/mediaService';
-import { formatDate } from '../utils/validation';
+import type { Article } from '../types/article';
+
+interface PhotoItem {
+    id: string;
+    url: string;
+    description: string;
+    source: 'article' | 'media';
+    /** 媒体表记录的原始ID（仅 source='media' 时有值，用于删除） */
+    mediaId?: number;
+}
 
 /**
- * 相册页面
+ * 相册页面 - 展示文章封面图 + 独立上传的图库照片
  */
 const GalleryPage = () => {
-    const [photos, setPhotos] = useState<MediaItem[]>([]);
+    const [photos, setPhotos] = useState<PhotoItem[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [uploadMessage, setUploadMessage] = useState('');
+    const [selectedPhoto, setSelectedPhoto] = useState<PhotoItem | null>(null);
+    const [deleting, setDeleting] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     /**
-     * 加载图库照片（当前暂用模拟数据，后续可对接文章媒体列表）
+     * 加载图库数据：文章封面图 + 独立上传照片
      */
-    const loadPhotos = () => {
-        // 图库照片需要关联到文章，后续可扩展独立的媒体图库 API
-        // 当前保留模拟数据作为展示
-        if (photos.length === 0) {
-            setPhotos([
-                { id: 1, url: 'https://images.unsplash.com/photo-1578357078586-491adf1aa5ba?w=400', type: 'IMAGE', description: '日本·小樽' },
-                { id: 2, url: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=400', type: 'IMAGE', description: '巴厘岛' },
-                { id: 3, url: 'https://images.unsplash.com/photo-1528164344705-47542687000d?w=400', type: 'IMAGE', description: '云南·丽江' },
-                { id: 4, url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400', type: 'IMAGE', description: '垦丁' },
-                { id: 5, url: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=400', type: 'IMAGE', description: '京都·岚山' },
-                { id: 6, url: 'https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=400', type: 'IMAGE', description: '敦煌' },
-                { id: 7, url: 'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=400', type: 'IMAGE', description: '日本·北海道' },
-                { id: 8, url: 'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?w=400', type: 'IMAGE', description: '泰国·清迈' },
-                { id: 9, url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=400', type: 'IMAGE', description: '新西兰' },
-                { id: 10, url: 'https://images.unsplash.com/photo-1476514525535-07fb3b10dd5e?w=400', type: 'IMAGE', description: '挪威' },
-                { id: 11, url: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400', type: 'IMAGE', description: '冰岛' },
-                { id: 12, url: 'https://images.unsplash.com/photo-1502602898657-3e91760e8f3b?w=400', type: 'IMAGE', description: '法国·巴黎' },
+    const loadGallery = useCallback(async () => {
+        try {
+            setLoading(true);
+
+            const [articleResult, galleryMedia] = await Promise.all([
+                articleService.getArticles(0, 100),
+                mediaService.getGalleryPhotos().catch(() => [] as MediaItem[]),
             ]);
+
+            const photoList: PhotoItem[] = [];
+
+            if (articleResult) {
+                const data = articleResult as unknown as { content: Article[] };
+                const articles = data.content || [];
+                articles
+                    .filter((a) => a.coverImage && a.status === 'PUBLISHED')
+                    .forEach((a) => {
+                        photoList.push({
+                            id: `article-${a.id}`,
+                            url: a.coverImage!,
+                            description: a.location || a.title,
+                            source: 'article',
+                        });
+                    });
+            }
+
+            (galleryMedia || []).forEach((m) => {
+                photoList.push({
+                    id: `media-${m.id}`,
+                    url: m.url,
+                    description: m.description || '',
+                    source: 'media',
+                    mediaId: m.id,
+                });
+            });
+
+            setPhotos(photoList);
+        } catch (err) {
+            console.error('加载图库失败:', err);
+        } finally {
+            setLoading(false);
         }
-    };
+    }, []);
 
-    // 首次加载
-    if (photos.length === 0 && !loading) {
-        loadPhotos();
-    }
+    useEffect(() => {
+        loadGallery();
+    }, [loadGallery]);
 
-    /**
-     * 文件选择处理
-     */
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
         handleUpload(Array.from(files));
-        // 重置 input 以便重复选择同一文件
         e.target.value = '';
     };
 
-    /**
-     * 上传图片
-     */
     const handleUpload = async (files: File[]) => {
         setUploading(true);
         setUploadMessage('');
@@ -66,10 +93,18 @@ const GalleryPage = () => {
 
         for (const file of files) {
             try {
-                // 上传到默认文章(articleId=0 表示独立图库照片)
                 const result = await mediaService.uploadImage(file, 0);
                 if (result) {
-                    setPhotos((prev) => [result, ...prev]);
+                    setPhotos((prev) => [
+                        {
+                            id: `media-${result.id}`,
+                            url: result.url,
+                            description: result.description || '',
+                            source: 'media',
+                            mediaId: result.id,
+                        },
+                        ...prev,
+                    ]);
                     successCount++;
                 }
             } catch (err) {
@@ -78,26 +113,39 @@ const GalleryPage = () => {
             }
         }
 
-        if (successCount > 0 || failCount > 0) {
-            setUploadMessage(
-                `成功上传 ${successCount} 张${failCount > 0 ? `，${failCount} 张失败` : ''}`
-            );
-            setTimeout(() => setUploadMessage(''), 3000);
-        }
+        setUploadMessage(
+            `成功上传 ${successCount} 张${failCount > 0 ? `，${failCount} 张失败` : ''}`
+        );
+        setTimeout(() => setUploadMessage(''), 3000);
         setUploading(false);
     };
 
     /**
-     * 拖拽上传处理
+     * 删除图库照片
      */
+    const handleDelete = async (photo: PhotoItem, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!photo.mediaId || deleting) return;
+        try {
+            setDeleting(photo.id);
+            await mediaService.deleteMedia(photo.mediaId);
+            setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+            if (selectedPhoto?.id === photo.id) {
+                setSelectedPhoto(null);
+            }
+        } catch (err) {
+            console.error('删除照片失败:', err);
+        } finally {
+            setDeleting(null);
+        }
+    };
+
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         const files = Array.from(e.dataTransfer.files).filter((f) =>
             f.type.startsWith('image/')
         );
-        if (files.length > 0) {
-            handleUpload(files);
-        }
+        if (files.length > 0) handleUpload(files);
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -110,7 +158,6 @@ const GalleryPage = () => {
 
     return (
         <div>
-            {/* 页面头部 */}
             <motion.div
                 className="mb-8"
                 initial={{ opacity: 0, y: 20 }}
@@ -119,7 +166,9 @@ const GalleryPage = () => {
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2">
                     📸 旅行相册
                 </h1>
-                <p className="text-gray-500">记录每一次旅途中的美好瞬间</p>
+                <p className="text-gray-500">
+                    记录每一次旅途中的美好瞬间（{photos.length} 张照片）
+                </p>
             </motion.div>
 
             {/* 工具栏 */}
@@ -135,43 +184,21 @@ const GalleryPage = () => {
                                  outline-none border-2 border-transparent focus:border-pink-200"
                     />
                 </div>
-                <div className="flex gap-2">
-                    <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-50
-                                   text-sm text-gray-600 hover:bg-gray-100 transition-colors">
-                        <Filter size={14} /> 筛选
-                    </button>
-                    <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-50
-                                   text-sm text-gray-600 hover:bg-gray-100 transition-colors">
-                        <Grid size={14} /> 布局
-                    </button>
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-white
-                                 transition-all disabled:opacity-50"
-                        style={{
-                            background: 'linear-gradient(135deg, #F472B6, #FB923C)',
-                        }}
-                    >
-                        {uploading ? (
-                            <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                            <Upload size={14} />
-                        )}
-                        上传
-                    </button>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={handleFileSelect}
-                    />
-                </div>
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm text-white
+                             transition-all disabled:opacity-50"
+                    style={{
+                        background: 'linear-gradient(135deg, #F472B6, #FB923C)',
+                    }}
+                >
+                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                    上传照片
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
             </div>
 
-            {/* 上传消息 */}
             {uploadMessage && (
                 <motion.div
                     className="mb-4 text-center text-sm text-green-500 bg-green-50 rounded-xl py-2"
@@ -182,19 +209,17 @@ const GalleryPage = () => {
                 </motion.div>
             )}
 
-            {/* 加载状态 */}
             {loading && (
                 <div className="flex justify-center py-20">
                     <Loader2 size={36} className="animate-spin text-gray-400" />
                 </div>
             )}
 
-            {/* 照片网格 */}
             {!loading && filteredPhotos.length === 0 && (
                 <div className="text-center py-20 text-gray-400">
                     <ImageIcon size={48} className="mx-auto mb-4 text-gray-300" />
                     <p>还没有照片</p>
-                    <p className="text-sm mt-1">上传你的第一张旅行照片吧</p>
+                    <p className="text-sm mt-1">发布带封面图的文章或直接上传照片吧</p>
                 </div>
             )}
 
@@ -207,7 +232,8 @@ const GalleryPage = () => {
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: index * 0.05 }}
-                            whileHover={{ scale: 1.05, zIndex: 10 }}
+                            whileHover={{ scale: 1.03, zIndex: 10 }}
+                            onClick={() => setSelectedPhoto(photo)}
                         >
                             <img
                                 src={photo.url}
@@ -216,14 +242,34 @@ const GalleryPage = () => {
                                          group-hover:scale-110"
                                 loading="lazy"
                             />
+                            {/* 悬停遮罩 */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent
                                           opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            {/* 删除按钮（仅独立上传的照片可删除） */}
+                            {photo.source === 'media' && photo.mediaId && (
+                                <button
+                                    onClick={(e) => handleDelete(photo, e)}
+                                    disabled={deleting === photo.id}
+                                    className="absolute top-2 right-2 p-2 rounded-full bg-red-500/80 text-white
+                                             opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600
+                                             disabled:opacity-50"
+                                >
+                                    {deleting === photo.id ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                    ) : (
+                                        <Trash2 size={14} />
+                                    )}
+                                </button>
+                            )}
+                            {/* 底部信息 */}
                             <div className="absolute bottom-0 left-0 right-0 p-3 text-white
                                           translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                                 {photo.description && (
-                                    <div className="text-sm font-medium">📍 {photo.description}</div>
+                                    <div className="text-sm font-medium truncate">{photo.description}</div>
                                 )}
-                                <div className="text-xs text-white/70">{photo.type}</div>
+                                <div className="text-xs text-white/60 mt-0.5">
+                                    {photo.source === 'article' ? '📝 文章封面' : '📷 相册上传'}
+                                </div>
                             </div>
                         </motion.div>
                     ))}
@@ -253,6 +299,68 @@ const GalleryPage = () => {
                     </>
                 )}
             </motion.div>
+
+            {/* 大图预览弹窗 */}
+            <AnimatePresence>
+                {selectedPhoto && (
+                    <motion.div
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setSelectedPhoto(null)}
+                    >
+                        {/* 关闭按钮 */}
+                        <button
+                            onClick={() => setSelectedPhoto(null)}
+                            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white
+                                     hover:bg-white/20 transition-colors z-10"
+                        >
+                            <X size={24} />
+                        </button>
+                        {/* 图片 */}
+                        <motion.img
+                            src={selectedPhoto.url}
+                            alt={selectedPhoto.description || '照片预览'}
+                            className="max-w-[90vw] max-h-[85vh] object-contain rounded-2xl"
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.8, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        {/* 底部信息栏 */}
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3
+                                      bg-white/10 backdrop-blur-sm rounded-full px-5 py-2.5 text-white text-sm">
+                            {selectedPhoto.description && (
+                                <span>📍 {selectedPhoto.description}</span>
+                            )}
+                            <a
+                                href={selectedPhoto.url}
+                                download
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1.5 rounded-full hover:bg-white/20 transition-colors"
+                                title="下载原图"
+                            >
+                                <Download size={18} />
+                            </a>
+                            {selectedPhoto.source === 'media' && selectedPhoto.mediaId && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(selectedPhoto, e as unknown as React.MouseEvent);
+                                    }}
+                                    className="p-1.5 rounded-full hover:bg-red-500/50 transition-colors"
+                                    title="删除照片"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

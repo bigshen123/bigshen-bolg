@@ -2,6 +2,8 @@ package com.bigshen.blog.controller;
 
 import com.bigshen.blog.dto.ArticleDTO;
 import com.bigshen.blog.dto.CreateArticleRequest;
+import com.bigshen.blog.dto.LikeResponse;
+import com.bigshen.blog.repository.UserRepository;
 import com.bigshen.blog.service.ArticleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 文章控制器
@@ -21,6 +24,7 @@ import java.util.List;
 public class ArticleController {
 
     private final ArticleService articleService;
+    private final UserRepository userRepository;
 
     /**
      * 获取文章列表
@@ -72,12 +76,27 @@ public class ArticleController {
     }
 
     /**
-     * 点赞文章
+     * 点赞/取消点赞文章（toggle 模式）
      */
     @PostMapping("/{id}/like")
-    public ResponseEntity<ArticleDTO> likeArticle(@PathVariable Long id) {
-        ArticleDTO article = articleService.likeArticle(id);
-        return ResponseEntity.ok(article);
+    public ResponseEntity<LikeResponse> likeArticle(@PathVariable Long id,
+                                                      Authentication authentication) {
+        LikeResponse response = articleService.likeArticle(id, authentication.getName());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 检查当前用户是否已点赞某文章
+     */
+    @GetMapping("/{id}/liked")
+    public ResponseEntity<Map<String, Boolean>> checkLiked(@PathVariable Long id,
+                                                             Authentication authentication) {
+        String username = authentication.getName();
+        Long userId = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"))
+                .getId();
+        boolean isLiked = articleService.isLikedByUser(id, userId);
+        return ResponseEntity.ok(Map.of("isLiked", isLiked));
     }
 
     /**
