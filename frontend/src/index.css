@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --color-primary: #FF6B8B;
+        --color-secondary: #4ECDC4;
+        --color-accent: #FFD166;
+        --color-bg: #F9F7F7;
+        --color-text: #333333;
+        --color-text-muted: #999999;
+        --radius-lg: 1rem;
+        --radius-xl: 1.5rem;
+        --radius-2xl: 2rem;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        line-height: 1.6;
+        min-height: 100vh;
+    }
+
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #aaa;
+    }
+}
+
+@layer components {
+    /* 卡通风格卡片 */
+    .cartoon-card {
+        @apply bg-white rounded-2xl shadow-md border-2 border-opacity-20;
+        border-color: var(--color-primary, #FF6B8B);
+        transition: all 0.3s ease;
+    }
+
+    .cartoon-card:hover {
+        @apply shadow-lg -translate-y-1;
+        border-color: var(--color-primary, #FF6B8B);
+        border-opacity: 0.5;
+    }
+
+    /* 卡通风格按钮 */
+    .cartoon-btn {
+        @apply px-6 py-3 rounded-full font-semibold transition-all duration-300;
+        @apply transform hover:scale-105 active:scale-95;
+        @apply shadow-md hover:shadow-lg;
+    }
+
+    .cartoon-btn-primary {
+        background-color: var(--color-primary, #FF6B8B);
+        @apply text-white;
+    }
+
+    .cartoon-btn-primary:hover {
+        filter: brightness(1.1);
+    }
+
+    /* 标签 */
+    .cartoon-tag {
+        @apply inline-block px-3 py-1 rounded-full text-sm font-medium;
+        @apply transition-all duration-200 hover:scale-105;
+    }
+}
+
+@layer utilities {
+    .text-gradient {
+        @apply bg-clip-text text-transparent;
+        background-image: linear-gradient(135deg, #FF6B8B, #4ECDC4);
+    }
+}
