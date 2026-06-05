@@ -1,0 +1,91 @@
+  {
+  "schemaVersion": 1,
+  "cliVersion": "0.1.15",
+  "updatedAt": "2026-06-05T05:20:34.895Z",
+  "files": {
+    "AGENTS.md": {
+      "sourceId": "generated:agents-md",
+      "templateHash": "b5c44f332a66121669893c4e584e5eb11ac92a461832fab09d18e3f88afc5474",
+      "fileHash": "99afb28be3a4a43ec5c152ca160a5eb56aeaf87d5872b141c235783dfbf9253d",
+      "state": "preserved"
+    },
+    "CLAUDE.md": {
+      "sourceId": "generated:claude-md",
+      "templateHash": "b5c44f332a66121669893c4e584e5eb11ac92a461832fab09d18e3f88afc5474",
+      "fileHash": "99afb28be3a4a43ec5c152ca160a5eb56aeaf87d5872b141c235783dfbf9253d",
+      "state": "preserved"
+    },
+    "spec-canon/.gitignore": {
+      "sourceId": "inline:sdd-gitignore",
+      "templateHash": "32f0c53a039866b8dfcef429f9cd63d2b2d1d0df61aca1415f0e8ef183564dd6",
+      "fileHash": "32f0c53a039866b8dfcef429f9cd63d2b2d1d0df61aca1415f0e8ef183564dd6",
+      "state": "unchanged"
+    },
+    "spec-canon/changes/.gitkeep": {
+      "sourceId": "inline:changes-gitkeep",
+      "templateHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "fileHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "state": "unchanged"
+    },
+    "spec-canon/decisions/AI_CHANGELOG.md": {
+      "sourceId": "template:AI_CHANGELOG.md",
+      "templateHash": "ab7bd895a40c1b72b957a69431a5280b5d1b36dfb89786462a859be4ca298543",
+      "fileHash": "ab7bd895a40c1b72b957a69431a5280b5d1b36dfb89786462a859be4ca298543",
+      "state": "unchanged"
+    },
+    "spec-canon/domains/README.md": {
+      "sourceId": "template:domains-readme.md",
+      "templateHash": "839ddb13a17e815306d1d0ca33f6f2d8d0944a94a51be0b4e221845a824c9fa6",
+      "fileHash": "839ddb13a17e815306d1d0ca33f6f2d8d0944a94a51be0b4e221845a824c9fa6",
+      "state": "unchanged"
+    },
+    "spec-canon/rules/RULES.md": {
+      "sourceId": "template:rules.md",
+      "templateHash": "c18a1dbbe2d76500e346ff2ec056ebd13c672fd95f7660c9dbbe23efa1d6cb99",
+      "fileHash": "c18a1dbbe2d76500e346ff2ec056ebd13c672fd95f7660c9dbbe23efa1d6cb99",
+      "state": "unchanged"
+    },
+    "spec-canon/templates/00_context.md": {
+      "sourceId": "template:00_context.md",
+      "templateHash": "c33ae516871c1ca843d2fce381052d84da4c41852fefdceae7ff4cdd9df4e31c",
+      "fileHash": "c33ae516871c1ca843d2fce381052d84da4c41852fefdceae7ff4cdd9df4e31c",
+      "state": "unchanged"
+    },
+    "spec-canon/templates/01_requirement.md": {
+      "sourceId": "template:01_requirement.md",
+      "templateHash": "708e01aec40ce2a315f8656bfd0f41e42be4db69d9c184e2200c18a9a1e13e55",
+      "fileHash": "708e01aec40ce2a315f8656bfd0f41e42be4db69d9c184e2200c18a9a1e13e55",
+      "state": "unchanged"
+    },
+    "spec-canon/templates/02_interface.md": {
+      "sourceId": "template:02_interface.md",
+      "templateHash": "ddaef4ae478b35e629f38f40e289449ed7500a49a373fa6cb6543affa778b6f1",
+      "fileHash": "ddaef4ae478b35e629f38f40e289449ed7500a49a373fa6cb6543affa778b6f1",
+      "state": "unchanged"
+    },
+    "spec-canon/templates/03_implementation.md": {
+      "sourceId": "template:03_implementation.md",
+      "templateHash": "44f42968d3994bab6c700c85119faff1ef0a45b8fecaef6dec2da74f6a890212",
+      "fileHash": "44f42968d3994bab6c700c85119faff1ef0a45b8fecaef6dec2da74f6a890212",
+      "state": "unchanged"
+    },
+    "spec-canon/templates/04_test_spec.md": {
+      "sourceId": "template:04_test_spec.md",
+      "templateHash": "00b13e51037f93f136335443f30057e7211f4302eb85028a682adb10abb15470",
+      "fileHash": "00b13e51037f93f136335443f30057e7211f4302eb85028a682adb10abb15470",
+      "state": "unchanged"
+    },
+    "spec-canon/templates/AI_CHANGELOG.md": {
+      "sourceId": "template:AI_CHANGELOG.md",
+      "templateHash": "ab7bd895a40c1b72b957a69431a5280b5d1b36dfb89786462a859be4ca298543",
+      "fileHash": "ab7bd895a40c1b72b957a69431a5280b5d1b36dfb89786462a859be4ca298543",
+      "state": "unchanged"
+    },
+    "spec-canon/templates/domain_spec.md": {
+      "sourceId": "template:domain_spec.md",
+      "templateHash": "51c681d46f9d9a74a1e272014b3ff9357a0a999db00c9750148e1ead5cb13627",
+      "fileHash": "51c681d46f9d9a74a1e272014b3ff9357a0a999db00c9750148e1ead5cb13627",
+      "state": "unchanged"
+    }
+  }
+}

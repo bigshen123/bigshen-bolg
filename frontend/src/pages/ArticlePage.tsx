@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Heart, Share2, MessageCircle, Loader2, Check, Copy } from 'lucide-react';
+import { ArrowLeft, Heart, Share2, MessageCircle, Loader2, Check, Copy, Bookmark } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useThemeContext } from '../components/theme/ThemeProvider';
@@ -11,6 +11,8 @@ import Button from '../components/common/Button';
 import { formatDate, formatCount } from '../utils/validation';
 import { articleService } from '../services/articleService';
 import { commentService } from '../services/commentService';
+import { favoriteService } from '../services/favoriteService';
+import { useAuth } from '../hooks/useAuth';
 import type { Article } from '../types/article';
 import type { Comment } from '../types/user';
 
@@ -21,6 +23,7 @@ const ArticlePage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { config } = useThemeContext();
+    const { user } = useAuth();
 
     const [article, setArticle] = useState<Article | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
@@ -33,6 +36,8 @@ const ArticlePage = () => {
     const [replyText, setReplyText] = useState<Record<number, string>>({});
     const [replying, setReplying] = useState<number | null>(null);
     const [shareToast, setShareToast] = useState(false);
+    const [isFavorited, setIsFavorited] = useState(false);
+    const [favoriting, setFavoriting] = useState(false);
 
     /**
      * 加载文章详情
@@ -63,6 +68,20 @@ const ArticlePage = () => {
     }, [id]);
 
     /**
+     * 检查收藏状态
+     */
+    const checkFavoriteStatus = useCallback(async () => {
+        const userId = user?.id;
+        if (!userId || !id) return;
+        try {
+            const favorited = await favoriteService.checkFavorite(userId, Number(id));
+            setIsFavorited(favorited);
+        } catch (err) {
+            console.error('检查收藏状态失败:', err);
+        }
+    }, [id, user?.id]);
+
+    /**
      * 加载评论列表
      */
     const loadComments = useCallback(async () => {
@@ -79,7 +98,8 @@ const ArticlePage = () => {
         loadArticle();
         loadComments();
         checkLiked();
-    }, [loadArticle, loadComments, checkLiked]);
+        checkFavoriteStatus();
+    }, [loadArticle, loadComments, checkLiked, checkFavoriteStatus]);
 
     /**
      * 点赞文章（toggle 模式）
@@ -97,6 +117,31 @@ const ArticlePage = () => {
             console.error('点赞失败:', err);
         } finally {
             setLiking(false);
+        }
+    };
+
+    /**
+     * 收藏/取消收藏文章（乐观更新 + 防抖）
+     */
+    const handleFavorite = async () => {
+        const userId = user?.id;
+        if (!id || favoriting || !userId) return;
+
+        const previousState = isFavorited;
+        try {
+            setFavoriting(true);
+            setIsFavorited(!isFavorited);
+
+            if (previousState) {
+                await favoriteService.removeFavorite(userId, Number(id));
+            } else {
+                await favoriteService.addFavorite(userId, Number(id));
+            }
+        } catch (err) {
+            setIsFavorited(previousState);
+            console.error('收藏操作失败:', err);
+        } finally {
+            setFavoriting(false);
         }
     };
 
@@ -297,6 +342,17 @@ const ArticlePage = () => {
                     disabled={liking}
                 >
                     {formatCount(likeCount)} 赞
+                </Button>
+                <Button
+                    variant={isFavorited ? 'primary' : 'outline'}
+                    icon={favoriting ? <Loader2 size={18} className="animate-spin" /> : (
+                        <Bookmark size={18} fill={isFavorited ? 'currentColor' : 'none'} />
+                    )}
+                    className="rounded-full"
+                    onClick={handleFavorite}
+                    disabled={favoriting}
+                >
+                    {isFavorited ? '已收藏' : '收藏'}
                 </Button>
                 <Button variant="outline" icon={<MessageCircle size={18} />} className="rounded-full">
                     {article.commentCount || 0} 评论

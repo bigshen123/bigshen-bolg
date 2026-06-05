@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Menu, X, Home, Image, Map, Compass, PenLine, Shield } from 'lucide-react';
+import { Search, Menu, X, Home, Image, Map, Compass, PenLine, Shield, Bookmark } from 'lucide-react';
 import { useThemeContext } from '../theme/ThemeProvider';
 import AnimalAvatar from '../theme/AnimalAvatar';
 import NotificationBell from './NotificationBell';
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
     { path: '/', label: '首页', icon: <Home size={18} /> },
     { path: '/gallery', label: '相册', icon: <Image size={18} /> },
     { path: '/map', label: '地图', icon: <Map size={18} /> },
+    { path: '/favorites', label: '收藏', icon: <Bookmark size={18} /> },
 ];
 
 /**
